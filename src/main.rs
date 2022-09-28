@@ -1,3 +1,7 @@
+pub mod utils;
+
+pub mod strategies;
+
 pub mod cost_func;
 pub mod csf;
 pub mod disaster_cost;
@@ -7,6 +11,8 @@ pub mod reward_func;
 pub mod risk_func;
 
 pub mod states;
+
+pub mod solve;
 
 use std::rc::Rc;
 
@@ -47,6 +53,7 @@ fn main() {
     let xs = vec![1.0, 1.0];
     let xp = vec![1.0, 1.0];
 
+    println!("Result from single-period of consumption:");
     println!("{:?}", payoff_func.u(&xs, &xp));
 
     let state = Rc::new(states::CommonBeliefs {
@@ -58,6 +65,7 @@ fn main() {
         gammas: vec![0.95, 0.80],
     };
 
+    println!("Result from multiple periods with discounting:");
     println!("{:?}", agg.u(
         &vec![xs.clone(), xs.clone()],
         &vec![xp.clone(), xp.clone()]
