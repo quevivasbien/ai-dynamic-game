@@ -6,7 +6,12 @@ pub mod prod_func;
 pub mod reward_func;
 pub mod risk_func;
 
+pub mod states;
+
+use std::rc::Rc;
+
 use payoff_func::PayoffFunc;
+use states::PayoffAggregator;
 
 fn main() {
     let prod_func = prod_func::DefaultProd {
@@ -43,4 +48,19 @@ fn main() {
     let xp = vec![1.0, 1.0];
 
     println!("{:?}", payoff_func.u(&xs, &xp));
+
+    let state = Rc::new(states::CommonBeliefs {
+        belief: Box::new(payoff_func)
+    });
+
+    let agg = states::ExponentialDiscounter {
+        states: vec![state.clone(), state.clone()],
+        gammas: vec![0.95, 0.80],
+    };
+
+    println!("{:?}", agg.u(
+        &vec![xs.clone(), xs.clone()],
+        &vec![xp.clone(), xp.clone()]
+    ));
+
 }

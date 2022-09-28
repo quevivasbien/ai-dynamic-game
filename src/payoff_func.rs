@@ -6,9 +6,9 @@ use crate::cost_func::CostFunc;
 use crate::disaster_cost::DisasterCost;
 
 pub trait PayoffFunc {
-    fn u_i(&self, i: usize, s: &Vec<f64>, p: &Vec<f64>) -> f64;
-    fn u(&self, s: &Vec<f64>, p: &Vec<f64>) -> Vec<f64> {
-        (0..p.len()).map(|i| self.u_i(i, s, p)).collect()
+    fn u_i(&self, i: usize, xs: &Vec<f64>, xp: &Vec<f64>) -> f64;
+    fn u(&self, xs: &Vec<f64>, xp: &Vec<f64>) -> Vec<f64> {
+        (0..xp.len()).map(|i| self.u_i(i, xs, xp)).collect()
     }
 }
 
@@ -52,5 +52,34 @@ where T: ProdFunc,
         ).sum::<f64>()) * self.disaster_cost.d_i(i, &s, &p);
 
         no_d - yes_d - self.cost_func.c_i(i, &xs, &xp)
+    }
+
+    fn u(&self, xs: &Vec<f64>, xp: &Vec<f64>) -> Vec<f64> {
+        let (s, p) = self.prod_func.f(xs, xp);
+        let sigmas = self.risk_func.sigma(&s, &p);
+        let qs = self.csf.q(&p);
+
+        let all_rewards = (0..p.len()).map(
+            |i| self.reward_func.reward(i, &p)
+        );
+
+        let no_d = all_rewards.map(
+            |rewards| sigmas.iter().zip(qs.iter()).zip(rewards.iter()).map(
+                |((sigma, q), reward)| sigma * q * reward
+            ).sum::<f64>()
+        );
+
+        let proba_d = 1.0 - sigmas.iter().zip(qs.iter()).map(
+            |(sigma, q)| sigma * q
+        ).sum::<f64>();
+
+        let disaster_costs = self.disaster_cost.d(&s, &p);
+        let yes_d = disaster_costs.iter().map(|d| d * proba_d);
+
+        let net_rewards = no_d.zip(yes_d).map(|(n, y)| n - y);
+
+        let cost = self.cost_func.c(&xs, &xp);
+
+        net_rewards.zip(cost.iter()).map(|(r, c)| r - c).collect()
     }
 }
