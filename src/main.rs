@@ -16,6 +16,7 @@ pub mod solve;
 
 use std::rc::Rc;
 
+use crate::strategies::{Actions, Strategies};
 use payoff_func::PayoffFunc;
 use states::PayoffAggregator;
 
@@ -53,8 +54,10 @@ fn main() {
     let xs = vec![1.0, 1.0];
     let xp = vec![1.0, 1.0];
 
+    let actions = Actions::new(xs, xp);
+
     println!("Result from single-period of consumption:");
-    println!("{:?}", payoff_func.u(&xs, &xp));
+    println!("{:?}", payoff_func.u(&actions));
 
     let state = Rc::new(states::CommonBeliefs {
         belief: Box::new(payoff_func)
@@ -65,10 +68,9 @@ fn main() {
         gammas: vec![0.95, 0.80],
     };
 
+    let strategies = Strategies::new(vec![actions.clone(), actions.clone()]);
+
     println!("Result from multiple periods with discounting:");
-    println!("{:?}", agg.u(
-        &vec![xs.clone(), xs.clone()],
-        &vec![xp.clone(), xp.clone()]
-    ));
+    println!("{:?}", agg.u(&strategies));
 
 }

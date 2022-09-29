@@ -1,7 +1,9 @@
+use crate::strategies::Actions;
+
 pub trait CostFunc {
-    fn c_i(&self, i: usize, xs: &Vec<f64>, xp: &Vec<f64>) -> f64;
-    fn c(&self, xs: &Vec<f64>, xp: &Vec<f64>) -> Vec<f64> {
-        (0..xs.len()).map(|i| self.c_i(i, xs, xp)).collect()
+    fn c_i(&self, i: usize, actions: &Actions) -> f64;
+    fn c(&self, actions: &Actions) -> Vec<f64> {
+        (0..actions.n).map(|i| self.c_i(i, actions)).collect()
     }
 }
 
@@ -18,7 +20,7 @@ impl DefaultCost {
 }
 
 impl CostFunc for DefaultCost {
-    fn c_i(&self, i: usize, xs: &Vec<f64>, xp: &Vec<f64>) -> f64 {
-        self.r[i] * (xs[i] + xp[i])
+    fn c_i(&self, i: usize, actions: &Actions) -> f64 {
+        self.r[i] * (actions.xs[i] + actions.xp[i])
     }
 }

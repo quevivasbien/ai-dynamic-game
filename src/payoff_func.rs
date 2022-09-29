@@ -1,3 +1,4 @@
+use crate::strategies::Actions;
 use crate::prod_func::ProdFunc;
 use crate::risk_func::RiskFunc;
 use crate::csf::CSF;
@@ -6,9 +7,9 @@ use crate::cost_func::CostFunc;
 use crate::disaster_cost::DisasterCost;
 
 pub trait PayoffFunc {
-    fn u_i(&self, i: usize, xs: &Vec<f64>, xp: &Vec<f64>) -> f64;
-    fn u(&self, xs: &Vec<f64>, xp: &Vec<f64>) -> Vec<f64> {
-        (0..xp.len()).map(|i| self.u_i(i, xs, xp)).collect()
+    fn u_i(&self, i: usize, actions: &Actions) -> f64;
+    fn u(&self, actions: &Actions) -> Vec<f64> {
+        (0..actions.n).map(|i| self.u_i(i, actions)).collect()
     }
 }
 
@@ -36,8 +37,8 @@ where T: ProdFunc,
       X: DisasterCost,
       Y: CostFunc
 {
-    fn u_i(&self, i: usize, xs: &Vec<f64>, xp: &Vec<f64>) -> f64 {
-        let (s, p) = self.prod_func.f(xs, xp);
+    fn u_i(&self, i: usize, actions: &Actions) -> f64 {
+        let (s, p) = self.prod_func.f(actions);
 
         let sigmas = self.risk_func.sigma(&s, &p);
         let qs = self.csf.q(&p);
@@ -51,11 +52,11 @@ where T: ProdFunc,
             |(sigma, q)| sigma * q
         ).sum::<f64>()) * self.disaster_cost.d_i(i, &s, &p);
 
-        no_d - yes_d - self.cost_func.c_i(i, &xs, &xp)
+        no_d - yes_d - self.cost_func.c_i(i, actions)
     }
 
-    fn u(&self, xs: &Vec<f64>, xp: &Vec<f64>) -> Vec<f64> {
-        let (s, p) = self.prod_func.f(xs, xp);
+    fn u(&self, actions: &Actions) -> Vec<f64> {
+        let (s, p) = self.prod_func.f(actions);
         let sigmas = self.risk_func.sigma(&s, &p);
         let qs = self.csf.q(&p);
 
@@ -78,7 +79,7 @@ where T: ProdFunc,
 
         let net_rewards = no_d.zip(yes_d).map(|(n, y)| n - y);
 
-        let cost = self.cost_func.c(&xs, &xp);
+        let cost = self.cost_func.c(actions);
 
         net_rewards.zip(cost.iter()).map(|(r, c)| r - c).collect()
     }
