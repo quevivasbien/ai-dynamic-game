@@ -1,4 +1,8 @@
 use std::rc::Rc;
+
+use ndarray::{Array, Ix1};
+
+use crate::strategies::*;
 use crate::payoff_func::PayoffFunc;
 
 pub trait State {
@@ -26,9 +30,9 @@ impl State for HetBeliefs {
 }
 
 pub trait PayoffAggregator {
-    fn u_i(&self, i: usize, xs: &Vec<Vec<f64>>, xp: &Vec<Vec<f64>>) -> f64;
-    fn u(&self, xs: &Vec<Vec<f64>>, xp: &Vec<Vec<f64>>) -> Vec<f64> {
-        (0..xs[0].len()).map(|i| self.u_i(i, xs, xp)).collect()
+    fn u_i(&self, i: usize, strategies: &Strategies) -> f64;
+    fn u(&self, strategies: &Strategies) -> Array<f64, Ix1> {
+        Array::from_iter((0..strategies.n).map(|i| self.u_i(i, strategies)))
     }
 }
 
@@ -38,9 +42,13 @@ pub struct ExponentialDiscounter<T: State> {
 }
 
 impl<T: State> PayoffAggregator for ExponentialDiscounter<T> {
-    fn u_i(&self, i: usize, xs: &Vec<Vec<f64>>, xp: &Vec<Vec<f64>>) -> f64 {
-        self.states.iter().enumerate().map(|(t, state)| {
-            self.gammas[i].powi(t.try_into().unwrap()) * state.belief(i).u_i(i, &xs[t], &xp[t])
+    fn u_i(&self, i: usize, strategies: &Strategies) -> f64 {
+        assert_eq!(self.states.len(), strategies.t);
+        let actions_seq = strategies.clone().to_actions();
+        actions_seq.iter().enumerate().map(|(t, actions)| {
+            let gamma = self.gammas[i];
+            let belief = self.states[t].belief(i);
+            gamma.powi(t.try_into().unwrap()) * belief.u_i(i, actions)
         }).sum()
     }
 }
