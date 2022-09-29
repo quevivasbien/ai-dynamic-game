@@ -1,16 +1,18 @@
+use ndarray::{Array, ArrayView, Ix1};
+
 pub trait DisasterCost {
-    fn d_i(&self, i: usize, s: &Vec<f64>, p: &Vec<f64>) -> f64;
-    fn d(&self, s: &Vec<f64>, p: &Vec<f64>) -> Vec<f64> {
-        (0..s.len()).map(|i| self.d_i(i, s, p)).collect()
+    fn d_i(&self, i: usize, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> f64;
+    fn d(&self, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> Array<f64, Ix1> {
+        Array::from_iter((0..s.len()).map(|i| self.d_i(i, s, p)))
     }
 }
 
 pub struct ConstantDisasterCost {
-    pub d: Vec<f64>,
+    pub d: Array<f64, Ix1>,
 }
 
 impl DisasterCost for ConstantDisasterCost {
-    fn d_i(&self, i: usize, _s: &Vec<f64>, _p: &Vec<f64>) -> f64 {
+    fn d_i(&self, i: usize, _s: ArrayView<f64, Ix1>, _p: ArrayView<f64, Ix1>) -> f64 {
         self.d[i]
     }
 }

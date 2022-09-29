@@ -3,7 +3,7 @@ use argmin_math::{ArgminAdd, ArgminSub, ArgminMul};
 
 use crate::strategies::*;
 use crate::states::PayoffAggregator;
-use crate::utils::isapprox_vec;
+use crate::utils::isapprox_arr;
 
 #[derive(Clone, Debug)]
 pub struct SolverOptions {
@@ -31,40 +31,21 @@ impl<T: PayoffAggregator> CostFunction for PlayerObjective<'_, T> {
 // allow addition of two strategy sets
 impl ArgminAdd<Strategies, Strategies> for Strategies {
     fn add(&self, other: &Self) -> Self {
-        assert_eq!(self.t, other.t, "Strategy sets must have same length");
-        assert_eq!(self.n, other.n, "Strategy sets must have same number of players");
-        let x = self.x.iter().zip(other.x.iter()).map(|(a, b)| {
-            let xs = a.xs.iter().zip(b.xs.iter()).map(|(x, y)| x + y).collect();
-            let xp = a.xp.iter().zip(b.xp.iter()).map(|(x, y)| x + y).collect();
-            Actions::new(xs, xp)
-        }).collect();
-        Strategies::new(x)
+        Strategies::from_array(&self.x + &other.x)
     }
 }
 
 // allow subtraction of two strategy sets
 impl ArgminSub<Strategies, Strategies> for Strategies {
     fn sub(&self, other: &Self) -> Self {
-        assert_eq!(self.t, other.t, "Strategy sets must have same length");
-        assert_eq!(self.n, other.n, "Strategy sets must have same number of players");
-        let x = self.x.iter().zip(other.x.iter()).map(|(a, b)| {
-            let xs = a.xs.iter().zip(b.xs.iter()).map(|(x, y)| x - y).collect();
-            let xp = a.xp.iter().zip(b.xp.iter()).map(|(x, y)| x - y).collect();
-            Actions::new(xs, xp)
-        }).collect();
-        Strategies::new(x)
+        Strategies::from_array(&self.x - &other.x)
     }
 }
 
 // allow multiplying a strategy set by a scalar
 impl ArgminMul<f64, Strategies> for Strategies {
     fn mul(&self, other: &f64) -> Self {
-        let x = self.x.iter().map(|a| {
-            let xs = a.xs.iter().map(|x| x * other).collect();
-            let xp = a.xp.iter().map(|x| x * other).collect();
-            Actions::new(xs, xp)
-        }).collect();
-        Strategies::new(x)
+        Strategies::from_array(*other * &self.x)
     }
 }
 
@@ -73,11 +54,7 @@ fn update_strat<T: PayoffAggregator>(strat: &mut Strategies, agg: &T) {
 }
 
 fn within_tol(current: &Strategies, last: &Strategies, tol: f64) -> bool {
-    current.x.iter().zip(last.x.iter()).all(|(c, l)|
-        isapprox_vec(&c.xs, &l.xs, tol, f64::EPSILON.sqrt())
-        &&
-        isapprox_vec(&c.xp, &l.xp, tol, f64::EPSILON.sqrt())
-    )
+    isapprox_arr(current.x.view(), last.x.view(), tol, f64::EPSILON.sqrt())
 }
 
 pub fn solve<T: PayoffAggregator>(agg: &T, options: &SolverOptions) -> Strategies {

@@ -1,40 +1,42 @@
+use ndarray::{Array, ArrayView, Ix1};
+
 pub trait RewardFunc {
-    fn win_i(&self, i: usize, p: &Vec<f64>) -> f64;
-    fn lose_i(&self, i: usize, p: &Vec<f64>) -> f64;
-    fn reward(&self, i: usize, p: &Vec<f64>) -> Vec<f64> {
-        (0..p.len()).map(|j| {
+    fn win_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64;
+    fn lose_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64;
+    fn reward(&self, i: usize, p: ArrayView<f64, Ix1>) -> Array<f64, Ix1> {
+        Array::from_iter((0..p.len()).map(|j| {
             if j == i {
                 self.win_i(j, p)
             } else {
                 self.lose_i(j, p)
             }
-        }).collect()
+        }))
     }
 }
 
 pub struct LinearReward {
-    win_a: Vec<f64>,
-    win_b: Vec<f64>,
-    lose_a: Vec<f64>,
-    lose_b: Vec<f64>,
+    win_a: Array<f64, Ix1>,
+    win_b: Array<f64, Ix1>,
+    lose_a: Array<f64, Ix1>,
+    lose_b: Array<f64, Ix1>,
 }
 
 impl LinearReward {
     pub fn new(n: usize) -> LinearReward {
         LinearReward {
-            win_a: vec![1.0; n],
-            win_b: vec![0.0; n],
-            lose_a: vec![0.0; n],
-            lose_b: vec![0.0; n],
+            win_a: Array::ones(n),
+            win_b: Array::zeros(n),
+            lose_a: Array::zeros(n),
+            lose_b: Array::zeros(n),
         }
     }
 }
 
 impl RewardFunc for LinearReward {
-    fn win_i(&self, i: usize, p: &Vec<f64>) -> f64 {
+    fn win_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64 {
         self.win_a[i] + self.win_b[i] * p[i]
     }
-    fn lose_i(&self, i: usize, p: &Vec<f64>) -> f64 {
+    fn lose_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64 {
         self.lose_a[i] + self.lose_b[i] * p[i]
     }
 }
