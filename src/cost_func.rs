@@ -9,19 +9,19 @@ pub trait CostFunc {
     }
 }
 
-pub struct DefaultCost {
+pub struct FixedUnitCost {
     r: Array<f64, Ix1>,
 }
 
-impl DefaultCost {
-    pub fn new(n: usize, r: f64) -> DefaultCost {
-        DefaultCost {
+impl FixedUnitCost {
+    pub fn new(n: usize, r: f64) -> FixedUnitCost {
+        FixedUnitCost {
             r: Array::from_elem(n, r)
         }
     }
 }
 
-impl CostFunc for DefaultCost {
+impl CostFunc for FixedUnitCost {
     fn c_i(&self, i: usize, actions: &Actions) -> f64 {
         self.r[i] * (actions.xs()[i] + actions.xp()[i])
     }

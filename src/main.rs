@@ -41,7 +41,7 @@ fn main() {
         d: Array::from_vec(vec![1.0, 1.0]),
     };
 
-    let cost_func = cost_func::DefaultCost::new(2, 0.1);
+    let cost_func = cost_func::FixedUnitCost::new(2, 0.1);
 
     let payoff_func = payoff_func::DefaultPayoff {
         prod_func,
