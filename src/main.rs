@@ -57,8 +57,8 @@ fn main() {
 
     let actions = Actions::from_inputs(xs, xp);
 
-    println!("Result from single-period of consumption:");
-    println!("{:?}", payoff_func.u(&actions));
+    println!("Payoff from single period of consumption:");
+    println!("{}", payoff_func.u(&actions));
 
     let state = Rc::new(states::CommonBeliefs {
         belief: Box::new(payoff_func)
@@ -71,7 +71,23 @@ fn main() {
 
     let strategies = Strategies::from_actions(vec![actions.clone(), actions.clone()]);
 
-    println!("Result from multiple periods with discounting:");
-    println!("{:?}", agg.u(&strategies));
+    println!("Payoff from multiple periods with discounting:");
+    println!("{}", agg.u(&strategies));
+
+    let sol = solve::solve(
+        &agg,
+        &solve::SolverOptions {
+            init_guess: strategies,
+            max_iters: 100,
+            tol: 1e-6,
+            nm_options: solve::NMOptions {
+                init_simplex_size: 1.0,
+                max_iters: 100,
+                tol: 1e-8,
+            }
+        }
+    );
+
+    println!("Result from solving:\n{}", sol);
 
 }

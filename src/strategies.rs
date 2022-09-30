@@ -1,3 +1,4 @@
+use std::fmt;
 use ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack};
 
 // represents actions for n players in a single time period
@@ -28,6 +29,12 @@ impl Actions {
         self.x.column(1)
     }
 
+}
+
+impl fmt::Display for Actions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "xs = {}, xp = {}", self.xs(), self.xp())
+    }
 }
 
 // represents actions for n players in t time periods
@@ -71,4 +78,17 @@ impl Strategies {
         }).collect()
     }
 
+}
+
+impl fmt::Display for Strategies {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let actions_seq = self.clone().to_actions();
+        for (t, actions) in actions_seq.iter().enumerate() {
+            write!(f, "t = {}: {}", t, actions)?;
+            if t != self.t - 1 {
+                write!(f, "\n")?;
+            }
+        }
+        Ok(())
+    }
 }

@@ -8,10 +8,10 @@ use crate::utils::isapprox_arr;
 
 #[derive(Clone, Debug)]
 pub struct SolverOptions {
-    init_guess: Strategies,
-    max_iters: u64,
-    tol: f64,
-    nm_options: NMOptions,
+    pub init_guess: Strategies,
+    pub max_iters: u64,
+    pub tol: f64,
+    pub nm_options: NMOptions,
 }
 
 #[derive(Clone, Debug)]
@@ -38,7 +38,7 @@ impl<T: PayoffAggregator> CostFunction for PlayerObjective<'_, T> {
         strategies.x.slice_mut(s![.., self.i, ..]).assign(
             &Array::from_shape_vec(
                 (self.base_strategies.t, self.base_strategies.n),
-                params.clone()
+                params.iter().map(|x| x.exp()).collect(),
             ).unwrap()
         );
         Ok(-self.payoff_aggregator.u_i(self.i, &strategies))
@@ -47,7 +47,7 @@ impl<T: PayoffAggregator> CostFunction for PlayerObjective<'_, T> {
 
 fn create_simplex(init_guess: ArrayView<f64, Ix2>, init_simplex_size: f64) -> Vec<Vec<f64>> {
     let mut simplex = Vec::new();
-    let base: Vec<f64> = init_guess.iter().cloned().collect();
+    let base: Vec<f64> = init_guess.iter().map(|x| x.ln()).collect();
     for i in 0..base.len() {
         let mut x = base.clone();
         x[i] += init_simplex_size;
@@ -57,7 +57,7 @@ fn create_simplex(init_guess: ArrayView<f64, Ix2>, init_simplex_size: f64) -> Ve
     simplex
 }
 
-fn solve_for_i<T: PayoffAggregator>(i: usize, strat: &Strategies, agg: &T, options: &NMOptions) -> Strategies {
+fn solve_for_i<T: PayoffAggregator>(i: usize, strat: &Strategies, agg: &T, options: &NMOptions) -> Result<Strategies, argmin::core::Error> {
     let init_simplex = create_simplex(
         strat.x.slice(s![.., i, ..]),
         options.init_simplex_size
@@ -70,21 +70,25 @@ fn solve_for_i<T: PayoffAggregator>(i: usize, strat: &Strategies, agg: &T, optio
     let solver = NelderMead::new(init_simplex).with_sd_tolerance(options.tol).unwrap();
     let res = Executor::new(obj, solver)
         .configure(|state| state.max_iters(options.max_iters))
-        .run().unwrap();
-    println!("Found solution: {}", res);
-    let mut new_strat = strat.clone();
-    new_strat.x.slice_mut(s![.., i, ..]).assign(
-        &Array::from_shape_vec(
-            (strat.t, strat.n),
-            res.state.best_param.unwrap()
-        ).unwrap()
-    );
-    new_strat
+        .run();
+    match res {
+        Ok(opres) => {
+            let mut new_strat = strat.clone();
+            new_strat.x.slice_mut(s![.., i, ..]).assign(
+                &Array::from_shape_vec(
+                    (strat.t, strat.n),
+                    opres.state.best_param.unwrap().iter().map(|x| x.exp()).collect(),
+                ).unwrap()
+            );
+            Ok(new_strat)
+        },
+        Err(err) => Err(err)
+    }
 }
 
 fn update_strat<T: PayoffAggregator>(strat: &mut Strategies, agg: &T, nm_options: &NMOptions) {
     for i in 0..strat.n {
-        let new_strat = solve_for_i(i, strat, agg, nm_options);
+        let new_strat = solve_for_i(i, strat, agg, nm_options).unwrap();
         strat.x.slice_mut(s![.., i, ..]).assign(&new_strat.x.slice(s![.., i, ..]));
     }
 }
@@ -99,8 +103,10 @@ pub fn solve<T: PayoffAggregator>(agg: &T, options: &SolverOptions) -> Strategie
         let last_strat = current_strat.clone();
         update_strat(&mut current_strat, agg, &options.nm_options);
         if within_tol(&current_strat, &last_strat, options.tol) {
-            break;
+            println!("Exited on iteration {}", _i);
+            return current_strat;
         }
     }
+    println!("Reached max iterations ({})", options.max_iters);
     current_strat
 }
