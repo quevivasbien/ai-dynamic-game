@@ -1,4 +1,4 @@
-use ndarray::{Array, Ix1};
+use numpy::ndarray::{Array, Ix1};
 
 use crate::strategies::Actions;
 
@@ -9,6 +9,7 @@ pub trait CostFunc {
     }
 }
 
+#[derive(Clone)]
 pub struct FixedUnitCost {
     r: Array<f64, Ix1>,
 }

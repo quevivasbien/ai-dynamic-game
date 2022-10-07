@@ -1,5 +1,5 @@
 use std::fmt;
-use ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack};
+use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack};
 
 // represents actions for n players in a single time period
 #[derive(Clone, Debug)]
@@ -9,7 +9,7 @@ pub struct Actions {
 }
 
 impl Actions {
-    
+
     pub fn from_inputs(xs: Array<f64, Ix1>, xp: Array<f64, Ix1>) -> Self {
         let x = match stack(Axis(1), &[xs.view(), xp.view()]) {
             Ok(x) => x,

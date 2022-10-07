@@ -1,9 +1,9 @@
-use ndarray::{Array, ArrayView, Ix2, s};
+use numpy::ndarray::{Array, ArrayView, Ix2, s};
 use argmin::core::{CostFunction, Executor};
 use argmin::solver::neldermead::NelderMead;
 
-use crate::strategies::*;
 use crate::states::PayoffAggregator;
+use crate::strategies::Strategies;
 use crate::utils::isapprox_arr;
 
 #[derive(Clone, Debug)]
@@ -70,43 +70,39 @@ fn solve_for_i<T: PayoffAggregator>(i: usize, strat: &Strategies, agg: &T, optio
     let solver = NelderMead::new(init_simplex).with_sd_tolerance(options.tol).unwrap();
     let res = Executor::new(obj, solver)
         .configure(|state| state.max_iters(options.max_iters))
-        .run();
-    match res {
-        Ok(opres) => {
-            let mut new_strat = strat.clone();
-            new_strat.x.slice_mut(s![.., i, ..]).assign(
-                &Array::from_shape_vec(
-                    (strat.t, strat.n),
-                    opres.state.best_param.unwrap().iter().map(|x| x.exp()).collect(),
-                ).unwrap()
-            );
-            Ok(new_strat)
-        },
-        Err(err) => Err(err)
-    }
+        .run()?;
+    let mut new_strat = strat.clone();
+    new_strat.x.slice_mut(s![.., i, ..]).assign(
+        &Array::from_shape_vec(
+            (strat.t, strat.n),
+            res.state.best_param.unwrap().iter().map(|x| x.exp()).collect(),
+        )?
+    );
+    Ok(new_strat)
 }
 
-fn update_strat<T: PayoffAggregator>(strat: &mut Strategies, agg: &T, nm_options: &NMOptions) {
+fn update_strat<T: PayoffAggregator>(strat: &mut Strategies, agg: &T, nm_options: &NMOptions) -> Result<(), argmin::core::Error> {
     for i in 0..strat.n {
-        let new_strat = solve_for_i(i, strat, agg, nm_options).unwrap();
+        let new_strat = solve_for_i(i, strat, agg, nm_options)?;
         strat.x.slice_mut(s![.., i, ..]).assign(&new_strat.x.slice(s![.., i, ..]));
     }
+    Ok(())
 }
 
 fn within_tol(current: &Strategies, last: &Strategies, tol: f64) -> bool {
     isapprox_arr(current.x.view(), last.x.view(), tol, f64::EPSILON.sqrt())
 }
 
-pub fn solve<T: PayoffAggregator>(agg: &T, options: &SolverOptions) -> Strategies {
+pub fn solve<T: PayoffAggregator>(agg: &T, options: &SolverOptions) -> Result<Strategies, argmin::core::Error> {
     let mut current_strat = options.init_guess.clone();
     for _i in 0..options.max_iters {
         let last_strat = current_strat.clone();
-        update_strat(&mut current_strat, agg, &options.nm_options);
+        update_strat(&mut current_strat, agg, &options.nm_options)?;
         if within_tol(&current_strat, &last_strat, options.tol) {
             println!("Exited on iteration {}", _i);
-            return current_strat;
+            return Ok(current_strat);
         }
     }
     println!("Reached max iterations ({})", options.max_iters);
-    current_strat
+    Ok(current_strat)
 }

@@ -1,30 +1,24 @@
-use std::rc::Rc;
-
-use ndarray::{Array, Ix1};
+use numpy::ndarray::{Array, Ix1};
 
 use crate::strategies::*;
 use crate::payoff_func::PayoffFunc;
 
-pub trait State {
-    fn belief(&self, i: usize) -> &Box<dyn PayoffFunc>;
+pub trait State<T: PayoffFunc> {
+    fn belief(&self, i: usize) -> &T;
 }
 
-pub struct CommonBeliefs {
-    pub belief: Box<dyn PayoffFunc>,
-}
-
-impl State for CommonBeliefs {
-    fn belief(&self, _i: usize) -> &Box<dyn PayoffFunc> {
-        &self.belief
+impl<T: PayoffFunc> State<T> for T {
+    fn belief(&self, _i: usize) -> &Self {
+        self
     }
 }
 
-pub struct HetBeliefs {
-    pub beliefs: Vec<Box<dyn PayoffFunc>>,
+pub struct HetBeliefs<T: PayoffFunc> {
+    pub beliefs: Vec<T>,
 }
 
-impl State for HetBeliefs {
-    fn belief(&self, i: usize) -> &Box<dyn PayoffFunc> {
+impl<T: PayoffFunc> State<T> for HetBeliefs<T> {
+    fn belief(&self, i: usize) -> &T {
         &self.beliefs[i]
     }
 }
@@ -36,14 +30,25 @@ pub trait PayoffAggregator {
     }
 }
 
-pub struct ExponentialDiscounter<T: State> {
-    pub states: Vec<Rc<T>>,
+pub struct ExponentialDiscounter<U: PayoffFunc, T: State<U>> {
+    pub states: Vec<T>,
     pub gammas: Vec<f64>,
+    phantom: std::marker::PhantomData<U>,
 }
 
-impl<T: State> PayoffAggregator for ExponentialDiscounter<T> {
+impl<U: PayoffFunc, T: State<U>> ExponentialDiscounter<U, T> {
+    pub fn new(states: Vec<T>, gammas: Vec<f64>) -> Self {
+        ExponentialDiscounter {
+            states,
+            gammas,
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<U: PayoffFunc, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T> {
     fn u_i(&self, i: usize, strategies: &Strategies) -> f64 {
-        assert_eq!(self.states.len(), strategies.t);
+        assert_eq!(self.states.len(), strategies.t, "Number of states should match number of time periods in strategies");
         let actions_seq = strategies.clone().to_actions();
         actions_seq.iter().enumerate().map(|(t, actions)| {
             let gamma = self.gammas[i];

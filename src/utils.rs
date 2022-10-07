@@ -1,4 +1,4 @@
-use ndarray::{ArrayView, Dimension};
+use numpy::ndarray::{ArrayView, Dimension};
 
 pub fn isapprox(a: f64, b: f64, rtol: f64, atol: f64) -> bool
 {

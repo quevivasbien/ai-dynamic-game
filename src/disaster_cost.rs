@@ -1,4 +1,4 @@
-use ndarray::{Array, ArrayView, Ix1};
+use numpy::ndarray::{Array, ArrayView, Ix1};
 
 pub trait DisasterCost {
     fn d_i(&self, i: usize, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> f64;
@@ -7,6 +7,7 @@ pub trait DisasterCost {
     }
 }
 
+#[derive(Clone)]
 pub struct ConstantDisasterCost {
     pub d: Array<f64, Ix1>,
 }
@@ -14,5 +15,13 @@ pub struct ConstantDisasterCost {
 impl DisasterCost for ConstantDisasterCost {
     fn d_i(&self, i: usize, _s: ArrayView<f64, Ix1>, _p: ArrayView<f64, Ix1>) -> f64 {
         self.d[i]
+    }
+}
+
+impl ConstantDisasterCost {
+    pub fn new(n: usize, d: f64) -> Self {
+        ConstantDisasterCost {
+            d: Array::from_elem(n, d),
+        }
     }
 }

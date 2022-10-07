@@ -1,4 +1,4 @@
-use ndarray::{Array, Ix1};
+use numpy::ndarray::{Array, Ix1};
 
 use crate::strategies::Actions;
 
@@ -10,6 +10,7 @@ pub trait ProdFunc {
     }
 }
 
+#[derive(Clone)]
 pub struct DefaultProd {
     pub a: Array<f64, Ix1>,
     pub alpha: Array<f64, Ix1>,

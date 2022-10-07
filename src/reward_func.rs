@@ -1,4 +1,4 @@
-use ndarray::{Array, ArrayView, Ix1};
+use numpy::ndarray::{Array, ArrayView, Ix1};
 
 pub trait RewardFunc {
     fn win_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64;
@@ -14,15 +14,16 @@ pub trait RewardFunc {
     }
 }
 
+#[derive(Clone)]
 pub struct LinearReward {
-    win_a: Array<f64, Ix1>,
-    win_b: Array<f64, Ix1>,
-    lose_a: Array<f64, Ix1>,
-    lose_b: Array<f64, Ix1>,
+    pub win_a: Array<f64, Ix1>,
+    pub win_b: Array<f64, Ix1>,
+    pub lose_a: Array<f64, Ix1>,
+    pub lose_b: Array<f64, Ix1>,
 }
 
 impl LinearReward {
-    pub fn new(n: usize) -> LinearReward {
+    pub fn default(n: usize) -> Self {
         LinearReward {
             win_a: Array::ones(n),
             win_b: Array::zeros(n),

@@ -1,12 +1,12 @@
-use ndarray::{Array, Ix1};
+use numpy::ndarray::{Array, Ix1};
 
-use crate::strategies::Actions;
-use crate::prod_func::ProdFunc;
-use crate::risk_func::RiskFunc;
-use crate::csf::CSF;
-use crate::reward_func::RewardFunc;
 use crate::cost_func::CostFunc;
+use crate::csf::CSF;
 use crate::disaster_cost::DisasterCost;
+use crate::prod_func::ProdFunc;
+use crate::reward_func::RewardFunc;
+use crate::risk_func::RiskFunc;
+use crate::strategies::Actions;
 
 pub trait PayoffFunc {
     fn u_i(&self, i: usize, actions: &Actions) -> f64;
@@ -15,6 +15,7 @@ pub trait PayoffFunc {
     }
 }
 
+#[derive(Clone)]
 pub struct DefaultPayoff<T, U, V, W, X, Y>
 where T: ProdFunc,
       U: RiskFunc,
