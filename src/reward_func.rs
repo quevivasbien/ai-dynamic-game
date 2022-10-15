@@ -12,10 +12,13 @@ pub trait RewardFunc {
             }
         }))
     }
+
+    fn n(&self) -> usize;
 }
 
 #[derive(Clone)]
 pub struct LinearReward {
+    n: usize,
     pub win_a: Array<f64, Ix1>,
     pub win_b: Array<f64, Ix1>,
     pub lose_a: Array<f64, Ix1>,
@@ -23,13 +26,26 @@ pub struct LinearReward {
 }
 
 impl LinearReward {
-    pub fn default(n: usize) -> Self {
-        LinearReward {
-            win_a: Array::ones(n),
-            win_b: Array::zeros(n),
-            lose_a: Array::zeros(n),
-            lose_b: Array::zeros(n),
+    pub fn new(
+        win_a: Array<f64, Ix1>,
+        win_b: Array<f64, Ix1>,
+        lose_a: Array<f64, Ix1>,
+        lose_b: Array<f64, Ix1>
+    ) -> Result<Self, &'static str> {
+        let n = win_a.len();
+        if win_b.len() != n || lose_a.len() != n || lose_b.len() != n {
+            return Err("When creating LinearReward: All input arrays must have the same length");
         }
+        Ok(LinearReward { n, win_a, win_b, lose_a, lose_b, })
+    }
+
+    pub fn default(n: usize) -> Self {
+        LinearReward::new(
+            Array::ones(n),
+            Array::zeros(n),
+            Array::zeros(n),
+            Array::zeros(n),
+        ).unwrap()
     }
 }
 
@@ -39,5 +55,9 @@ impl RewardFunc for LinearReward {
     }
     fn lose_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64 {
         self.lose_a[i] + self.lose_b[i] * p[i]
+    }
+
+    fn n(&self) -> usize {
+        self.n
     }
 }

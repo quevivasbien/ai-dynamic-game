@@ -24,12 +24,43 @@ where T: ProdFunc,
       X: DisasterCost,
       Y: CostFunc
 {
+    pub n: usize,
     pub prod_func: T,
     pub risk_func: U,
     pub csf: V,
     pub reward_func: W,
     pub disaster_cost: X,
     pub cost_func: Y,
+}
+
+impl<T, U, V, W, X, Y> DefaultPayoff<T, U, V, W, X, Y>
+where T: ProdFunc,
+      U: RiskFunc,
+      V: CSF,
+      W: RewardFunc,
+      X: DisasterCost,
+      Y: CostFunc
+{
+    pub fn new(prod_func: T, risk_func: U, csf: V, reward_func: W, disaster_cost: X, cost_func: Y) -> Result<DefaultPayoff<T, U, V, W, X, Y>, &'static str>
+    {
+        let n = prod_func.n();
+        if n != risk_func.n()
+            || n != reward_func.n()
+            || n != disaster_cost.n()
+            || n != cost_func.n()
+        {
+            return Err("When creating new DefaultPayoff: All components must have the same n");
+        }
+        Ok(DefaultPayoff {
+            n,
+            prod_func,
+            risk_func,
+            csf,
+            reward_func,
+            disaster_cost,
+            cost_func,
+        })
+    }
 }
 
 impl<T, U, V, W, X, Y> PayoffFunc for DefaultPayoff<T, U, V, W, X, Y>

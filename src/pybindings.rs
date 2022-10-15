@@ -70,12 +70,12 @@ impl PyDefaultProd {
         a: PyReadonlyArray1<f64>, alpha: PyReadonlyArray1<f64>,
         b: PyReadonlyArray1<f64>, beta: PyReadonlyArray1<f64>
     ) -> Self {
-        PyDefaultProd(DefaultProd {
-            a: a.as_array().to_owned(),
-            alpha: alpha.as_array().to_owned(),
-            b: b.as_array().to_owned(),
-            beta: beta.as_array().to_owned(),
-        })
+        PyDefaultProd(DefaultProd::new(
+            a.as_array().to_owned(),
+            alpha.as_array().to_owned(),
+            b.as_array().to_owned(),
+            beta.as_array().to_owned(),
+        ).expect("invalid production function parameters"))
     }
 
     fn f_i(&self, i: usize, actions: &PyActions) -> (f64, f64) {
@@ -102,12 +102,12 @@ impl PyLinearReward {
         win_a: PyReadonlyArray1<f64>, win_b: PyReadonlyArray1<f64>,
         lose_a: PyReadonlyArray1<f64>, lose_b: PyReadonlyArray1<f64>
     ) -> Self {
-        PyLinearReward(LinearReward {
-            win_a: win_a.as_array().to_owned(),
-            win_b: win_b.as_array().to_owned(),
-            lose_a: lose_a.as_array().to_owned(),
-            lose_b: lose_b.as_array().to_owned(),
-        })
+        PyLinearReward(LinearReward::new(
+            win_a.as_array().to_owned(),
+            win_b.as_array().to_owned(),
+            lose_a.as_array().to_owned(),
+            lose_b.as_array().to_owned(),
+        ).expect("invalid reward function parameters"))
     }
 }
 
@@ -130,21 +130,20 @@ pub struct PyDefaultPayoff(DefaultPayoff_);
 impl PyDefaultPayoff {
     #[new]
     pub fn new(
-        n: usize,
         prod_func: PyDefaultProd,
         reward_func: PyLinearReward,
-        theta: f64,
-        d: f64,
-        r: f64,
+        theta: PyReadonlyArray1<f64>,
+        d: PyReadonlyArray1<f64>,
+        r: PyReadonlyArray1<f64>,
     ) -> Self {
-        PyDefaultPayoff(DefaultPayoff {
-            prod_func: prod_func.0,
-            risk_func: WinnerOnlyRisk::new(n, theta),
-            csf: DefaultCSF,
-            reward_func: reward_func.0,
-            disaster_cost: ConstantDisasterCost::new(n, d),
-            cost_func: FixedUnitCost::new(n, r),
-        })
+        PyDefaultPayoff(DefaultPayoff::new(
+            prod_func.0,
+            WinnerOnlyRisk { theta: theta.as_array().to_owned() },
+            DefaultCSF,
+            reward_func.0,
+            ConstantDisasterCost { d: d.as_array().to_owned() },
+            FixedUnitCost { r: r.as_array().to_owned() },
+        ).expect("invalid payoff function parameters"))
     }
 
     pub fn u_i(&self, i: usize, actions: &PyActions) -> f64 {

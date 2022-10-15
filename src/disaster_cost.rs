@@ -5,6 +5,8 @@ pub trait DisasterCost {
     fn d(&self, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> Array<f64, Ix1> {
         Array::from_iter((0..s.len()).map(|i| self.d_i(i, s, p)))
     }
+
+    fn n(&self) -> usize;
 }
 
 #[derive(Clone)]
@@ -15,6 +17,10 @@ pub struct ConstantDisasterCost {
 impl DisasterCost for ConstantDisasterCost {
     fn d_i(&self, i: usize, _s: ArrayView<f64, Ix1>, _p: ArrayView<f64, Ix1>) -> f64 {
         self.d[i]
+    }
+
+    fn n(&self) -> usize {
+        self.d.len()
     }
 }
 

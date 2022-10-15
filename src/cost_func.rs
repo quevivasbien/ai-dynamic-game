@@ -7,11 +7,13 @@ pub trait CostFunc {
     fn c(&self, actions: &Actions) -> Array<f64, Ix1> {
         Array::from_iter((0..actions.n).map(|i| self.c_i(i, actions)))
     }
+
+    fn n(&self) -> usize;
 }
 
 #[derive(Clone)]
 pub struct FixedUnitCost {
-    r: Array<f64, Ix1>,
+    pub r: Array<f64, Ix1>,
 }
 
 impl FixedUnitCost {
@@ -25,5 +27,9 @@ impl FixedUnitCost {
 impl CostFunc for FixedUnitCost {
     fn c_i(&self, i: usize, actions: &Actions) -> f64 {
         self.r[i] * (actions.xs()[i] + actions.xp()[i])
+    }
+    
+    fn n(&self) -> usize {
+        self.r.len()
     }
 }

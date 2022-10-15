@@ -14,7 +14,7 @@ You can interact directly with the Rust code, or use the provided Python binding
 
 ### Using the Python bindings
 
-Start by creating a virtual environment in the main directory of this repository: if you have Conda (e.g., Anaconda), you can do that by running
+Start by creating a new virtual environment: if you have Conda (e.g., Anaconda), you can do that by running
 ```bash
 conda create --name venv python=3.7
 ```
@@ -30,7 +30,7 @@ You can then install the maturin build tool in this environment with
 pip install maturin
 ```
 
-Finally, to compile the Rust code and create a Python library, run
+Finally, to compile the Rust code and create a Python library, run the following from the main directory of this repository:
 ```bash
 maturin develop
 ```
@@ -50,12 +50,11 @@ prodFunc = dp.ProdFunc(
 rewardFunc = dp.LinearReward(np.ones(2), np.zeros(2), np.zeros(2), np.zeros(2))
 
 payoffFunc = dp.PayoffFunc(
-    n = 2,
     prod_func = prodFunc,
     reward_func = rewardFunc,
-    theta = 0.5,
-    d = 1.0,
-    r = 0.1
+    theta = np.array([0.5, 0.5]),
+    d = np.array([1.0, 1.0]),
+    r = np.array([0.1, 0.1])
 )
 
 actions = dp.Actions(np.array([1., 1.]), np.array([2., 2.]))
@@ -67,3 +66,5 @@ This should print
 ```
 Payoff from actions: [-0.2099315 -0.2099315]
 ```
+
+You can also compile a Python library wheel with `maturin build`, but I wouldn't recommend this until this project is in a more developed state.
