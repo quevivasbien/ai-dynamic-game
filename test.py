@@ -1,6 +1,8 @@
 import numpy as np
 import dynapai as dp
 
+from time import time
+
 prodFunc = dp.ProdFunc(
     a = np.array([10., 10.]),
     alpha = np.array([0.5, 0.5]),
@@ -23,12 +25,12 @@ actions = dp.Actions(
     xp = np.array([2., 2.])
 )
 
-print("Actions =", actions)
+print("Actions:", actions)
 print("Payoff from actions:", payoffFunc.u(actions))
 
 strategies = dp.Strategies.from_actions([actions, actions, actions])
 
-print("Strategies =", strategies)
+print("Strategies:", strategies)
 
 agg = dp.Aggregator(
     states = [payoffFunc, payoffFunc, payoffFunc],
@@ -46,4 +48,8 @@ solverOptions = dp.SolverOptions(
     nm_tol = 1e-8,
 )
 
-print("Optimal strategies:", dp.solve(agg, solverOptions), sep = '\n')
+time0 = time()
+res = dp.solve(agg, solverOptions)
+time1 = time()
+print(f"Solved in {time1 - time0:.3f} seconds")
+print("Optimal strategies:", res, sep = '\n')

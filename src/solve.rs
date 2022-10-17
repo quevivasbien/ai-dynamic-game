@@ -35,7 +35,7 @@ impl<S: StrategyType, T: PayoffAggregator<Strat = S>> CostFunction for PlayerObj
 
     fn cost(&self, params: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
         let mut strategies = self.base_strategies.clone();
-        strategies.data_mut().slice_mut(s![.., self.i, ..]).assign(
+        strategies.data_mut().slice_mut(s![self.i, .., ..]).assign(
             &Array::from_shape_vec(
                 (self.base_strategies.t(), self.base_strategies.n()),
                 params.iter().map(|x| x.exp()).collect(),
@@ -59,7 +59,7 @@ fn create_simplex(init_guess: ArrayView<f64, Ix2>, init_simplex_size: f64) -> Ve
 
 fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat: &S, agg: &T, options: &NMOptions) -> Result<S, argmin::core::Error> {
     let init_simplex = create_simplex(
-        strat.data().slice(s![.., i, ..]),
+        strat.data().slice(s![i, .., ..]),
         options.init_simplex_size
     );
     let obj = PlayerObjective {
@@ -72,7 +72,7 @@ fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat:
         .configure(|state| state.max_iters(options.max_iters))
         .run()?;
     let mut new_strat = strat.clone();
-    new_strat.data_mut().slice_mut(s![.., i, ..]).assign(
+    new_strat.data_mut().slice_mut(s![i, .., ..]).assign(
         &Array::from_shape_vec(
             (strat.t(), strat.n()),
             res.state.best_param.unwrap().iter().map(|x| x.exp()).collect(),
@@ -84,7 +84,7 @@ fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat:
 fn update_strat<S: StrategyType, T: PayoffAggregator<Strat = S>>(strat: &mut S, agg: &T, nm_options: &NMOptions) -> Result<(), argmin::core::Error> {
     for i in 0..strat.n() {
         let new_strat = solve_for_i(i, strat, agg, nm_options)?;
-        strat.data_mut().slice_mut(s![.., i, ..]).assign(&new_strat.data().slice(s![.., i, ..]));
+        strat.data_mut().slice_mut(s![i, .., ..]).assign(&new_strat.data().slice(s![i, .., ..]));
     }
     Ok(())
 }

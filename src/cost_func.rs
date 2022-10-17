@@ -1,11 +1,11 @@
 use numpy::ndarray::{Array, Ix1};
 
-use crate::strategies::Actions;
+use crate::strategies::{ActionType, Actions};
 
 pub trait CostFunc {
     fn c_i(&self, i: usize, actions: &Actions) -> f64;
     fn c(&self, actions: &Actions) -> Array<f64, Ix1> {
-        Array::from_iter((0..actions.n).map(|i| self.c_i(i, actions)))
+        Array::from_iter((0..actions.n()).map(|i| self.c_i(i, actions)))
     }
 
     fn n(&self) -> usize;

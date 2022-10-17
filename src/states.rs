@@ -54,8 +54,19 @@ impl<U: PayoffFunc, T: State<U>> ExponentialDiscounter<U, T> {
 impl<U: PayoffFunc, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T> {
     type Strat = Strategies;
 
+    fn u(&self, strategies: &Strategies) -> Array<f64, Ix1> {
+        assert_eq!(self.states.len(), strategies.t(), "Number of states should match number of time periods in strategies");
+        let actions_seq = strategies.clone().to_actions();
+        actions_seq.iter().enumerate().map(|(t, actions)| {
+            let states = &self.states[t];
+            Array::from_iter(self.gammas.iter().zip(0..self.states.len()).map(|(gamma, i)| {
+                gamma.powi(t.try_into().unwrap()) * states.belief(i).u_i(i, actions)
+            }))
+        }).fold(Array::zeros(self.gammas.len()), |acc, x| acc + x)
+    }
+
     fn u_i(&self, i: usize, strategies: &Strategies) -> f64 {
-        assert_eq!(self.states.len(), strategies.t, "Number of states should match number of time periods in strategies");
+        assert_eq!(self.states.len(), strategies.t(), "Number of states should match number of time periods in strategies");
         let actions_seq = strategies.clone().to_actions();
         actions_seq.iter().enumerate().map(|(t, actions)| {
             let gamma = self.gammas[i];
@@ -64,3 +75,30 @@ impl<U: PayoffFunc, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T
         }).sum()
     }
 }
+
+
+pub struct InvestExponentialDiscounter<T: PayoffFunc + Clone> {
+    pub state0: T,
+    pub gammas: Vec<f64>,
+}
+
+impl<T: PayoffFunc + Clone> InvestExponentialDiscounter<T> {
+    pub fn new(state0: T, gammas: Vec<f64>) -> Self {
+        InvestExponentialDiscounter { state0, gammas }
+    }
+
+    // to-do: need to figure out how to get this to work
+    // may need to put more constraints on type of PayoffFunc
+    // possibly implement InvestCostFunc?
+    // fn next_state(&self, actions: &InvestActions) -> T {
+
+    // }
+}
+
+// impl<T: PayoffFunc + Clone> PayoffAggregator for InvestExponentialDiscounter<T> {
+//     type Strat = InvestStrategies;
+
+//     fn u_i(&self, strategies: &InvestStrategies) -> Array<f64, Ix1> {
+        
+//     }
+// }

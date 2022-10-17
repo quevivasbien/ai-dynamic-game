@@ -11,7 +11,7 @@ use crate::reward_func::LinearReward;
 use crate::risk_func::WinnerOnlyRisk;
 use crate::solve::{NMOptions, SolverOptions, solve};
 use crate::states::{PayoffAggregator, ExponentialDiscounter};
-use crate::strategies::{Actions, Strategies};
+use crate::strategies::*;
 
 
 // implement python class containers for Actions and Strategies

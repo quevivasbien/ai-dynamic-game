@@ -6,12 +6,12 @@ use crate::disaster_cost::DisasterCost;
 use crate::prod_func::ProdFunc;
 use crate::reward_func::RewardFunc;
 use crate::risk_func::RiskFunc;
-use crate::strategies::Actions;
+use crate::strategies::{ActionType, Actions};
 
 pub trait PayoffFunc {
     fn u_i(&self, i: usize, actions: &Actions) -> f64;
     fn u(&self, actions: &Actions) -> Array<f64, Ix1> {
-        Array::from_iter((0..actions.n).map(|i| self.u_i(i, actions)))
+        Array::from_iter((0..actions.n()).map(|i| self.u_i(i, actions)))
     }
 }
 

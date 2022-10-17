@@ -1,11 +1,11 @@
 use numpy::ndarray::{Array, Ix1};
 
-use crate::strategies::Actions;
+use crate::strategies::{ActionType, Actions};
 
 pub trait ProdFunc {
     fn f_i(&self, i: usize, actions: &Actions) -> (f64, f64);
     fn f(&self, actions: &Actions) -> (Array<f64, Ix1>, Array<f64, Ix1>) {
-        let (s, p) = (0..actions.n).map(|i| self.f_i(i, actions)).unzip();
+        let (s, p) = (0..actions.n()).map(|i| self.f_i(i, actions)).unzip();
         (Array::from_vec(s), Array::from_vec(p))
     }
 
