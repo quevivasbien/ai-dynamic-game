@@ -1,5 +1,5 @@
 use std::fmt;
-use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack};
+use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack, ArrayViewMut};
 
 // represents actions for n players in a single time period
 #[derive(Clone, Debug)]
@@ -35,6 +35,13 @@ impl fmt::Display for Actions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "xs = {}, xp = {}", self.xs(), self.xp())
     }
+}
+
+pub trait StrategyType: Clone {
+    fn t(&self) -> usize;
+    fn n(&self) -> usize;
+    fn data(&self) -> ArrayView<f64, Ix3>;
+    fn data_mut(&mut self) -> ArrayViewMut<f64, Ix3>;
 }
 
 // represents actions for n players in t time periods
@@ -78,6 +85,21 @@ impl Strategies {
         }).collect()
     }
 
+}
+
+impl StrategyType for Strategies {
+    fn t(&self) -> usize {
+        self.t
+    }
+    fn n(&self) -> usize {
+        self.n
+    }
+    fn data(&self) -> ArrayView<f64, Ix3> {
+        self.x.view()
+    }
+    fn data_mut(&mut self) -> ArrayViewMut<f64, Ix3> {
+        self.x.view_mut()
+    }
 }
 
 impl fmt::Display for Strategies {

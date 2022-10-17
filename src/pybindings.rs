@@ -184,7 +184,7 @@ impl PyExponentialDiscounter {
 // create python class container for SolverOptions
 
 #[pyclass(name = "SolverOptions")]
-pub struct PySolverOptions(SolverOptions);
+pub struct PySolverOptions(SolverOptions<Strategies>);
 
 #[pymethods]
 impl PySolverOptions {
