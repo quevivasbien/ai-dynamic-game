@@ -37,9 +37,9 @@ impl<S: StrategyType, T: PayoffAggregator<Strat = S>> CostFunction for PlayerObj
         let mut strategies = self.base_strategies.clone();
         strategies.data_mut().slice_mut(s![self.i, .., ..]).assign(
             &Array::from_shape_vec(
-                (self.base_strategies.t(), self.base_strategies.n()),
+                (self.base_strategies.t(), self.base_strategies.nparams()),
                 params.iter().map(|x| x.exp()).collect(),
-            ).unwrap()
+            )?
         );
         Ok(-self.payoff_aggregator.u_i(self.i, &strategies))
     }
@@ -74,7 +74,7 @@ fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat:
     let mut new_strat = strat.clone();
     new_strat.data_mut().slice_mut(s![i, .., ..]).assign(
         &Array::from_shape_vec(
-            (strat.t(), strat.n()),
+            (strat.t(), strat.nparams()),
             res.state.best_param.unwrap().iter().map(|x| x.exp()).collect(),
         )?
     );

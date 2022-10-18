@@ -25,8 +25,12 @@ fn dynapai(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<pybindings::PyDefaultProd>()?;
     m.add_class::<pybindings::PyLinearReward>()?;
     m.add_class::<pybindings::PyDefaultPayoff>()?;
-    m.add_class::<pybindings::PyExponentialDiscounter>()?;
     m.add_class::<pybindings::PySolverOptions>()?;
-    m.add_function(wrap_pyfunction!(pybindings::solve_py, m)?)?;
+    m.add_class::<pybindings::PyExponentialDiscounter>()?;
+    m.add_class::<pybindings::PyInvestActions>()?;
+    m.add_class::<pybindings::PyInvestStrategies>()?;
+    m.add_class::<pybindings::PyInvestProd>()?;
+    m.add_class::<pybindings::PyInvestPayoff>()?;
+    m.add_class::<pybindings::PyInvestExpDiscounter>()?;
     Ok(())
 }

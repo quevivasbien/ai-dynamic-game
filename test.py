@@ -40,7 +40,6 @@ agg = dp.Aggregator(
 print("Aggregate payoff from strategies:", agg.u(strategies))
 
 solverOptions = dp.SolverOptions(
-    init_guess = strategies,
     max_iters = 100,
     tol = 1e-6,
     init_simplex_size = 1.,
@@ -49,7 +48,40 @@ solverOptions = dp.SolverOptions(
 )
 
 time0 = time()
-res = dp.solve(agg, solverOptions)
+res = agg.solve(init_guess = strategies, options = solverOptions)
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
 print("Optimal strategies:", res, sep = '\n')
+
+payoffFunc = dp.InvestPayoffFunc(
+    prod_func = prodFunc.with_invest(),
+    reward_func = rewardFunc,
+    theta = np.array([0.5, 0.5]),
+    d = np.array([1.0, 1.0]),
+    r_x = np.array([0.1, 0.1]),
+    r_inv = np.array([0.01, 0.01])
+)
+
+actions = dp.InvestActions(
+    xs = np.array([1., 1.]),
+    xp = np.array([2., 2.]),
+    inv_s = np.array([0.5, 0.5]),
+    inv_p = np.array([0.1, 0.1])
+)
+print("Invest actions:", actions)
+
+strategies = dp.InvestStrategies.from_actions([actions, actions, actions])
+print("Invest strategies:", strategies)
+
+agg = dp.InvestAggregator(
+    state0 = payoffFunc,
+    gammas = [0.9, 0.5]
+)
+
+print("Aggregate payoff from invest strategies:", agg.u(strategies))
+
+time0 = time()
+res = agg.solve(init_guess = strategies, options = solverOptions)
+time1 = time()
+print(f"Solved in {time1 - time0:.3f} seconds")
+print("Optimal invest strategies:", res, sep = '\n')

@@ -7,7 +7,7 @@ pub trait State<T: PayoffFunc>: Clone {
     fn belief(&self, i: usize) -> &T;
 }
 
-impl<T: PayoffFunc + Clone> State<T> for T {
+impl<T: PayoffFunc> State<T> for T {
     fn belief(&self, _i: usize) -> &Self {
         self
     }
@@ -18,7 +18,7 @@ pub struct HetBeliefs<T: PayoffFunc> {
     pub beliefs: Vec<T>,
 }
 
-impl<T: PayoffFunc + Clone> State<T> for HetBeliefs<T> {
+impl<T: PayoffFunc> State<T> for HetBeliefs<T> {
     fn belief(&self, i: usize) -> &T {
         &self.beliefs[i]
     }
@@ -32,13 +32,13 @@ pub trait PayoffAggregator {
     }
 }
 
-pub struct ExponentialDiscounter<U: PayoffFunc, T: State<U>> {
+pub struct ExponentialDiscounter<U: PayoffFunc<Act = Actions>, T: State<U>> {
     pub states: Vec<T>,
     pub gammas: Vec<f64>,
     phantom: std::marker::PhantomData<U>,
 }
 
-impl<U: PayoffFunc, T: State<U>> ExponentialDiscounter<U, T> {
+impl<U: PayoffFunc<Act = Actions>, T: State<U>> ExponentialDiscounter<U, T> {
     pub fn new(states: Vec<T>, gammas: Vec<f64>) -> Self {
         ExponentialDiscounter {
             states,
@@ -51,7 +51,7 @@ impl<U: PayoffFunc, T: State<U>> ExponentialDiscounter<U, T> {
     }
 }
 
-impl<U: PayoffFunc, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T> {
+impl<U: PayoffFunc<Act = Actions>, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T> {
     type Strat = Strategies;
 
     fn u(&self, strategies: &Strategies) -> Array<f64, Ix1> {
@@ -76,29 +76,62 @@ impl<U: PayoffFunc, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T
     }
 }
 
-
-pub struct InvestExponentialDiscounter<T: PayoffFunc + Clone> {
+#[derive(Clone)]
+pub struct InvestExponentialDiscounter<T>
+where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
+{
     pub state0: T,
     pub gammas: Vec<f64>,
 }
 
-impl<T: PayoffFunc + Clone> InvestExponentialDiscounter<T> {
+impl<T> InvestExponentialDiscounter<T>
+where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
+{
     pub fn new(state0: T, gammas: Vec<f64>) -> Self {
         InvestExponentialDiscounter { state0, gammas }
     }
 
-    // to-do: need to figure out how to get this to work
-    // may need to put more constraints on type of PayoffFunc
-    // possibly implement InvestCostFunc?
-    // fn next_state(&self, actions: &InvestActions) -> T {
-
-    // }
+    fn get_states(&self, actions_seq: &Vec<InvestActions>) -> Vec<T> {
+        let mut states = vec![self.state0.clone()];
+        for actions in actions_seq {
+            states.push(states.last().unwrap().mutate_on_action(actions));
+        }
+        states
+    }
 }
 
-// impl<T: PayoffFunc + Clone> PayoffAggregator for InvestExponentialDiscounter<T> {
-//     type Strat = InvestStrategies;
-
-//     fn u_i(&self, strategies: &InvestStrategies) -> Array<f64, Ix1> {
-        
+// impl<T> MutatesOnAction for InvestExponentialDiscounter<T>
+// where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
+// {
+//     type Act = InvestActions;
+//     fn mutate_on_action_inplace(mut self, actions: &Self::Act) -> Self {
+//         self.state = self.state.mutate_on_action_inplace(actions);
+//         self
 //     }
 // }
+
+impl<T> PayoffAggregator for InvestExponentialDiscounter<T>
+where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
+{
+    type Strat = InvestStrategies;
+
+    fn u(&self, strategies: &InvestStrategies) -> Array<f64, Ix1> {
+        let actions_seq = strategies.clone().to_actions();
+        let states = self.get_states(&actions_seq);
+        actions_seq.iter().enumerate().map(|(t, actions)| {
+            Array::from_iter(self.gammas.iter().zip(0..states.len()).map(|(gamma, i)| {
+                gamma.powi(t.try_into().unwrap()) * states[t].belief(i).u_i(i, actions)
+            }))
+        }).fold(Array::zeros(self.gammas.len()), |acc, x| acc + x)
+    }
+
+    fn u_i(&self, i: usize, strategies: &InvestStrategies) -> f64 {
+        let actions_seq = strategies.clone().to_actions();
+        let states = self.get_states(&actions_seq);
+        actions_seq.iter().enumerate().map(|(t, actions)| {
+            let gamma = self.gammas[i];
+            let belief = states[t].belief(i);
+            gamma.powi(t.try_into().unwrap()) * belief.u_i(i, actions)
+        }).sum()
+    }
+}

@@ -6,23 +6,25 @@ use crate::disaster_cost::DisasterCost;
 use crate::prod_func::ProdFunc;
 use crate::reward_func::RewardFunc;
 use crate::risk_func::RiskFunc;
-use crate::strategies::{ActionType, Actions};
+use crate::strategies::{ActionType, MutatesOnAction};
 
-pub trait PayoffFunc {
-    fn u_i(&self, i: usize, actions: &Actions) -> f64;
-    fn u(&self, actions: &Actions) -> Array<f64, Ix1> {
+pub trait PayoffFunc: Clone {
+    type Act: ActionType;
+    fn u_i(&self, i: usize, actions: &Self::Act) -> f64;
+    fn u(&self, actions: &Self::Act) -> Array<f64, Ix1> {
         Array::from_iter((0..actions.n()).map(|i| self.u_i(i, actions)))
     }
 }
 
 #[derive(Clone)]
-pub struct DefaultPayoff<T, U, V, W, X, Y>
-where T: ProdFunc,
+pub struct DefaultPayoff<A, T, U, V, W, X, Y>
+where A: ActionType,
+      T: ProdFunc<Act = A>,
       U: RiskFunc,
       V: CSF,
       W: RewardFunc,
       X: DisasterCost,
-      Y: CostFunc
+      Y: CostFunc<Act = A>,
 {
     pub n: usize,
     pub prod_func: T,
@@ -33,16 +35,18 @@ where T: ProdFunc,
     pub cost_func: Y,
 }
 
-impl<T, U, V, W, X, Y> DefaultPayoff<T, U, V, W, X, Y>
-where T: ProdFunc,
+impl<A, T, U, V, W, X, Y> DefaultPayoff<A, T, U, V, W, X, Y>
+where A: ActionType,
+      T: ProdFunc<Act = A>,
       U: RiskFunc,
       V: CSF,
       W: RewardFunc,
       X: DisasterCost,
-      Y: CostFunc
+      Y: CostFunc<Act = A>,
 {
-    pub fn new(prod_func: T, risk_func: U, csf: V, reward_func: W, disaster_cost: X, cost_func: Y) -> Result<DefaultPayoff<T, U, V, W, X, Y>, &'static str>
-    {
+    pub fn new(
+        prod_func: T, risk_func: U, csf: V, reward_func: W, disaster_cost: X, cost_func: Y
+    ) -> Result<DefaultPayoff<A, T, U, V, W, X, Y>, &'static str> {
         let n = prod_func.n();
         if n != risk_func.n()
             || n != reward_func.n()
@@ -63,15 +67,17 @@ where T: ProdFunc,
     }
 }
 
-impl<T, U, V, W, X, Y> PayoffFunc for DefaultPayoff<T, U, V, W, X, Y>
-where T: ProdFunc,
+impl<A, T, U, V, W, X, Y> PayoffFunc for DefaultPayoff<A, T, U, V, W, X, Y>
+where A: ActionType,
+      T: ProdFunc<Act = A>,
       U: RiskFunc,
       V: CSF,
       W: RewardFunc,
       X: DisasterCost,
-      Y: CostFunc
+      Y: CostFunc<Act = A>,
 {
-    fn u_i(&self, i: usize, actions: &Actions) -> f64 {
+    type Act = A;
+    fn u_i(&self, i: usize, actions: &A) -> f64 {
         let (s, p) = self.prod_func.f(actions);
 
         let sigmas = self.risk_func.sigma(s.view(), p.view());
@@ -89,7 +95,7 @@ where T: ProdFunc,
         no_d - yes_d - self.cost_func.c_i(i, actions)
     }
 
-    fn u(&self, actions: &Actions) -> Array<f64, Ix1> {
+    fn u(&self, actions: &A) -> Array<f64, Ix1> {
         let (s, p) = self.prod_func.f(actions);
         let sigmas = self.risk_func.sigma(s.view(), p.view());
         let qs = self.csf.q(p.view());
@@ -116,5 +122,21 @@ where T: ProdFunc,
         let cost = self.cost_func.c(actions);
 
         Array::from_iter(net_rewards.zip(cost.iter()).map(|(r, c)| r - c))
+    }
+}
+
+impl<A, T, U, V, W, X, Y> MutatesOnAction for DefaultPayoff<A, T, U, V, W, X, Y>
+where A: ActionType,
+      T: ProdFunc<Act = A> + MutatesOnAction<Act = A>,
+      U: RiskFunc,
+      V: CSF,
+      W: RewardFunc,
+      X: DisasterCost,
+      Y: CostFunc<Act = A>,
+{
+    type Act = A;
+    fn mutate_on_action_inplace(mut self, action: &A) -> Self {
+        self.prod_func = self.prod_func.mutate_on_action_inplace(action);
+        self
     }
 }

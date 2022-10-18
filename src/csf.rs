@@ -1,6 +1,6 @@
 use numpy::ndarray::{Array, ArrayView, Ix1};
 
-pub trait CSF {
+pub trait CSF: Clone {
     fn q_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64;
     fn q(&self, p: ArrayView<f64, Ix1>) -> Array<f64, Ix1> {
         Array::from_iter((0..p.len()).map(|i| self.q_i(i, p)))

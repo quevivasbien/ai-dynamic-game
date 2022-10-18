@@ -3,10 +3,14 @@ use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack, ArrayViewMut,
 
 pub trait ActionType: Clone {
     fn n(&self) -> usize;
+    fn nparams(&self) -> usize;
     fn data(&self) -> ArrayView<f64, Ix2>;
     fn data_mut(&mut self) -> ArrayViewMut<f64, Ix2>;
 
     fn from_array(x: Array<f64, Ix2>) -> Self;
+
+    fn xs(&self) -> ArrayView<f64, Ix1>;
+    fn xp(&self) -> ArrayView<f64, Ix1>;
 }
 
 // represents actions for n players in a single time period
@@ -20,6 +24,7 @@ impl ActionType for Actions {
     fn n(&self) -> usize {
         self.n
     }
+    fn nparams(&self) -> usize { 2 }
     fn data(&self) -> ArrayView<f64, Ix2> {
         self.x.view()
     }
@@ -33,6 +38,13 @@ impl ActionType for Actions {
             x
         }
     }
+
+    fn xs(&self) -> ArrayView<f64, Ix1> {
+        self.x.column(0)
+    }
+    fn xp(&self) -> ArrayView<f64, Ix1> {
+        self.x.column(1)
+    }
 }
 
 impl Actions {
@@ -44,15 +56,6 @@ impl Actions {
         };
         Actions::from_array(x)
     }
-
-    pub fn xs(&self) -> ArrayView<f64, Ix1> {
-        self.x.column(0)
-    }
-
-    pub fn xp(&self) -> ArrayView<f64, Ix1> {
-        self.x.column(1)
-    }
-
 }
 
 impl fmt::Display for Actions {
@@ -71,6 +74,7 @@ impl ActionType for InvestActions {
     fn n(&self) -> usize {
         self.n
     }
+    fn nparams(&self) -> usize { 4 }
     fn data(&self) -> ArrayView<f64, Ix2> {
         self.x.view()
     }
@@ -83,6 +87,13 @@ impl ActionType for InvestActions {
             n: x.shape()[0],
             x
         }
+    }
+
+    fn xs(&self) -> ArrayView<f64, Ix1> {
+        self.x.column(0)
+    }
+    fn xp(&self) -> ArrayView<f64, Ix1> {
+        self.x.column(1)
     }
 }
 
@@ -99,18 +110,9 @@ impl InvestActions {
         InvestActions::from_array(x)
     }
 
-    pub fn xs(&self) -> ArrayView<f64, Ix1> {
-        self.x.column(0)
-    }
-
-    pub fn xp(&self) -> ArrayView<f64, Ix1> {
-        self.x.column(1)
-    }
-
     pub fn inv_s(&self) -> ArrayView<f64, Ix1> {
         self.x.column(2)
     }
-
     pub fn inv_p(&self) -> ArrayView<f64, Ix1> {
         self.x.column(3)
     }
@@ -127,13 +129,27 @@ impl fmt::Display for InvestActions {
     }
 }
 
+pub trait MutatesOnAction: Clone + Sized {
+    type Act: ActionType;
+
+    #[allow(unused_mut)]
+    #[allow(unused_variables)]
+    fn mutate_on_action_inplace(mut self, actions: &Self::Act) -> Self {
+        self
+    }
+    fn mutate_on_action(&self, actions: &Self::Act) -> Self {
+        self.clone().mutate_on_action_inplace(actions)
+    }
+}
+
 pub trait StrategyType: Clone {
     type Act: ActionType;
     // return number of time periods
     // return number of players
     fn n(&self) -> usize;
     fn t(&self) -> usize;
-    // return n x t x m array of params representing strategy
+    fn nparams(&self) -> usize;
+    // return n x t x nparams array of params representing strategy
     // where m is the number of parameters for each player + time period
     fn data(&self) -> ArrayView<f64, Ix3>;
     fn data_mut(&mut self) -> ArrayViewMut<f64, Ix3>;
@@ -171,6 +187,7 @@ impl StrategyType for Strategies {
     fn n(&self) -> usize {
         self.n
     }
+    fn nparams(&self) -> usize { 2 }
     fn data(&self) -> ArrayView<f64, Ix3> {
         self.x.view()
     }
@@ -221,6 +238,8 @@ impl StrategyType for InvestStrategies {
         self.t
     }
 
+    fn nparams(&self) -> usize { 4 }
+
     fn data(&self) -> ArrayView<f64, Ix3> {
         self.x.view()
     }
@@ -235,5 +254,18 @@ impl StrategyType for InvestStrategies {
             t: x.shape()[1],
             x
         }
+    }
+}
+
+impl fmt::Display for InvestStrategies {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let actions_seq = self.clone().to_actions();
+        for (t, actions) in actions_seq.iter().enumerate() {
+            write!(f, "t = {}: {}", t, actions)?;
+            if t != self.t - 1 {
+                write!(f, "\n")?;
+            }
+        }
+        Ok(())
     }
 }

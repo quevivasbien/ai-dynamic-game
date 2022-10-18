@@ -1,6 +1,6 @@
 use numpy::ndarray::{ArrayView, Ix1, Array};
 
-pub trait RiskFunc {
+pub trait RiskFunc: Clone {
     // sigma_i is proba(safe | i wins)
     fn sigma_i(&self, i: usize, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> f64;
     fn sigma(&self, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> Array<f64, Ix1> {
