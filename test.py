@@ -70,7 +70,7 @@ actions = dp.InvestActions(
 )
 print("Invest actions:", actions)
 
-strategies = dp.InvestStrategies.from_actions([actions, actions, actions])
+strategies = dp.InvestStrategies.from_actions([actions]*10)
 print("Invest strategies:", strategies)
 
 agg = dp.InvestAggregator(

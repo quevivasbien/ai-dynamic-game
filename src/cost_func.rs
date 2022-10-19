@@ -2,7 +2,7 @@ use numpy::ndarray::{Array, Ix1};
 
 use crate::strategies::*;
 
-pub trait CostFunc: Clone {
+pub trait CostFunc: Clone + Send + Sync {
     type Act: ActionType;
 
     fn c_i(&self, i: usize, actions: &Self::Act) -> f64;

@@ -3,7 +3,7 @@ use numpy::ndarray::{Array, Ix1};
 use crate::strategies::*;
 use crate::payoff_func::PayoffFunc;
 
-pub trait State<T: PayoffFunc>: Clone {
+pub trait State<T: PayoffFunc>: Clone + Send + Sync {
     fn belief(&self, i: usize) -> &T;
 }
 
@@ -24,7 +24,7 @@ impl<T: PayoffFunc> State<T> for HetBeliefs<T> {
     }
 }
 
-pub trait PayoffAggregator {
+pub trait PayoffAggregator: Send + Sync {
     type Strat: StrategyType;
     fn u_i(&self, i: usize, strategies: &Self::Strat) -> f64;
     fn u(&self, strategies: &Self::Strat) -> Array<f64, Ix1> {
@@ -59,7 +59,7 @@ impl<U: PayoffFunc<Act = Actions>, T: State<U>> PayoffAggregator for Exponential
         let actions_seq = strategies.clone().to_actions();
         actions_seq.iter().enumerate().map(|(t, actions)| {
             let states = &self.states[t];
-            Array::from_iter(self.gammas.iter().zip(0..self.states.len()).map(|(gamma, i)| {
+            Array::from_iter(self.gammas.iter().enumerate().map(|(i, gamma)| {
                 gamma.powi(t.try_into().unwrap()) * states.belief(i).u_i(i, actions)
             }))
         }).fold(Array::zeros(self.gammas.len()), |acc, x| acc + x)
@@ -100,16 +100,6 @@ where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
     }
 }
 
-// impl<T> MutatesOnAction for InvestExponentialDiscounter<T>
-// where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
-// {
-//     type Act = InvestActions;
-//     fn mutate_on_action_inplace(mut self, actions: &Self::Act) -> Self {
-//         self.state = self.state.mutate_on_action_inplace(actions);
-//         self
-//     }
-// }
-
 impl<T> PayoffAggregator for InvestExponentialDiscounter<T>
 where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
 {
@@ -119,7 +109,7 @@ where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
         let actions_seq = strategies.clone().to_actions();
         let states = self.get_states(&actions_seq);
         actions_seq.iter().enumerate().map(|(t, actions)| {
-            Array::from_iter(self.gammas.iter().zip(0..states.len()).map(|(gamma, i)| {
+            Array::from_iter(self.gammas.iter().enumerate().map(|(i, gamma)| {
                 gamma.powi(t.try_into().unwrap()) * states[t].belief(i).u_i(i, actions)
             }))
         }).fold(Array::zeros(self.gammas.len()), |acc, x| acc + x)

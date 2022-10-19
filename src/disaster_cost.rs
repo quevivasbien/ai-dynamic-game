@@ -1,6 +1,6 @@
 use numpy::ndarray::{Array, ArrayView, Ix1};
 
-pub trait DisasterCost: Clone {
+pub trait DisasterCost: Clone + Send + Sync {
     fn d_i(&self, i: usize, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> f64;
     fn d(&self, s: ArrayView<f64, Ix1>, p: ArrayView<f64, Ix1>) -> Array<f64, Ix1> {
         Array::from_iter((0..s.len()).map(|i| self.d_i(i, s, p)))

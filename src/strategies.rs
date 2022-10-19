@@ -1,7 +1,7 @@
 use std::fmt;
 use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack, ArrayViewMut, Slice};
 
-pub trait ActionType: Clone {
+pub trait ActionType: Clone + Send + Sync {
     fn n(&self) -> usize;
     fn nparams(&self) -> usize;
     fn data(&self) -> ArrayView<f64, Ix2>;
@@ -142,7 +142,7 @@ pub trait MutatesOnAction: Clone + Sized {
     }
 }
 
-pub trait StrategyType: Clone {
+pub trait StrategyType: Clone + Send + Sync {
     type Act: ActionType;
     // return number of time periods
     // return number of players

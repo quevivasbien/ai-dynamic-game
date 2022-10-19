@@ -1,6 +1,6 @@
 use numpy::ndarray::{Array, ArrayView, Ix1};
 
-pub trait RewardFunc: Clone {
+pub trait RewardFunc: Clone + Send + Sync {
     fn win_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64;
     fn lose_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64;
     fn reward(&self, i: usize, p: ArrayView<f64, Ix1>) -> Array<f64, Ix1> {

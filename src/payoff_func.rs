@@ -8,7 +8,7 @@ use crate::reward_func::RewardFunc;
 use crate::risk_func::RiskFunc;
 use crate::strategies::{ActionType, MutatesOnAction};
 
-pub trait PayoffFunc: Clone {
+pub trait PayoffFunc: Clone + Send + Sync {
     type Act: ActionType;
     fn u_i(&self, i: usize, actions: &Self::Act) -> f64;
     fn u(&self, actions: &Self::Act) -> Array<f64, Ix1> {
