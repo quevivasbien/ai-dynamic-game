@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 argmin-math = "0.2.1"
 argmin = "0.7.0"
 numpy = "0.17"
+rayon = "1.5.3"
 
 [dependencies.pyo3]
 version = "0.17.1"
