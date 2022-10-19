@@ -10,7 +10,7 @@ pub trait RiskFunc: Clone + Send + Sync {
     fn n(&self) -> usize;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WinnerOnlyRisk {
     pub theta: Array<f64, Ix1>,
 }

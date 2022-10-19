@@ -7,7 +7,7 @@ pub trait CSF: Clone + Send + Sync {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DefaultCSF;
 
 impl CSF for DefaultCSF {

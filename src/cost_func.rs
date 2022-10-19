@@ -2,18 +2,17 @@ use numpy::ndarray::{Array, Ix1};
 
 use crate::strategies::*;
 
-pub trait CostFunc: Clone + Send + Sync {
-    type Act: ActionType;
+pub trait CostFunc<A: ActionType>: Clone + Send + Sync {
 
-    fn c_i(&self, i: usize, actions: &Self::Act) -> f64;
-    fn c(&self, actions: &Self::Act) -> Array<f64, Ix1> {
+    fn c_i(&self, i: usize, actions: &A) -> f64;
+    fn c(&self, actions: &A) -> Array<f64, Ix1> {
         Array::from_iter((0..actions.n()).map(|i| self.c_i(i, actions)))
     }
 
     fn n(&self) -> usize;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FixedUnitCost {
     pub r: Array<f64, Ix1>,
 }
@@ -26,8 +25,7 @@ impl FixedUnitCost {
     }
 }
 
-impl CostFunc for FixedUnitCost {
-    type Act = Actions;
+impl CostFunc<Actions> for FixedUnitCost {
 
     fn c_i(&self, i: usize, actions: &Actions) -> f64 {
         self.r[i] * (actions.xs()[i] + actions.xp()[i])
@@ -38,11 +36,11 @@ impl CostFunc for FixedUnitCost {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FixedInvestCost {
     n: usize,
-    r_x: Array<f64, Ix1>,
-    r_inv: Array<f64, Ix1>,
+    pub r_x: Array<f64, Ix1>,
+    pub r_inv: Array<f64, Ix1>,
 }
 
 impl FixedInvestCost {
@@ -63,8 +61,7 @@ impl FixedInvestCost {
     }
 }
 
-impl CostFunc for FixedInvestCost {
-    type Act = InvestActions;
+impl CostFunc<InvestActions> for FixedInvestCost {
 
     fn c_i(&self, i: usize, actions: &InvestActions) -> f64 {
         self.r_x[i] * (actions.xs()[i] + actions.xp()[i]) + self.r_inv[i] * (actions.inv_s()[i] + actions.inv_p()[i])

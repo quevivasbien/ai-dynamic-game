@@ -1,4 +1,5 @@
 use numpy::ndarray::{Array, ArrayView, Ix1};
+use std::fmt;
 
 pub trait RewardFunc: Clone + Send + Sync {
     fn win_i(&self, i: usize, p: ArrayView<f64, Ix1>) -> f64;
@@ -16,7 +17,7 @@ pub trait RewardFunc: Clone + Send + Sync {
     fn n(&self) -> usize;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LinearReward {
     n: usize,
     pub win_a: Array<f64, Ix1>,
@@ -59,5 +60,14 @@ impl RewardFunc for LinearReward {
 
     fn n(&self) -> usize {
         self.n
+    }
+}
+
+impl fmt::Display for LinearReward {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f, "LinearReward {{ win_a: {}, win_b: {}, lose_a: {}, lose_b: {} }}",
+            self.win_a, self.win_b, self.lose_a, self.lose_b
+        )
     }
 }

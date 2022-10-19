@@ -24,7 +24,12 @@ pub struct PyActions(Actions);
 impl PyActions {
     #[new]
     fn from_inputs(xs: PyReadonlyArray1<f64>, xp: PyReadonlyArray1<f64>) -> Self {
-        PyActions(Actions::from_inputs(xs.as_array().to_owned(), xp.as_array().to_owned()))
+        PyActions(
+            match Actions::from_inputs(xs.as_array().to_owned(), xp.as_array().to_owned()) {
+                Ok(actions) => actions,
+                Err(e) => panic!("{}", e),
+            }
+        )
     }
 
     fn __str__(&self) -> String {
@@ -43,10 +48,15 @@ impl PyInvestActions {
         xs: PyReadonlyArray1<f64>, xp: PyReadonlyArray1<f64>,
         inv_s: PyReadonlyArray1<f64>, inv_p: PyReadonlyArray1<f64>,
     ) -> Self {
-        PyInvestActions(InvestActions::from_inputs(
-            xs.as_array().to_owned(), xp.as_array().to_owned(),
-            inv_s.as_array().to_owned(), inv_p.as_array().to_owned(),
-        ))
+        PyInvestActions(
+            match InvestActions::from_inputs(
+                xs.as_array().to_owned(), xp.as_array().to_owned(),
+                inv_s.as_array().to_owned(), inv_p.as_array().to_owned(),
+            ) {
+                Ok(actions) => actions,
+                Err(e) => panic!("{}", e),
+            }
+        )
     }
 
     fn __str__(&self) -> String {
@@ -71,7 +81,12 @@ impl PyStrategies {
             a.extract::<PyActions>()
              .expect("actions should contain only objects of type PyActions").0
         ).collect();
-        PyStrategies(Strategies::from_actions(actions_vec))
+        PyStrategies(
+            match Strategies::from_actions(actions_vec) {
+                Ok(strategies) => strategies,
+                Err(e) => panic!("{}", e),
+            }
+        )
     }
 
     fn __str__(&self) -> String {
@@ -96,7 +111,12 @@ impl PyInvestStrategies {
             a.extract::<PyInvestActions>()
              .expect("actions should contain only objects of type PyInvestActions").0
         ).collect();
-        PyInvestStrategies(InvestStrategies::from_actions(actions_vec))
+        PyInvestStrategies(
+            match InvestStrategies::from_actions(actions_vec) {
+                Ok(strategies) => strategies,
+                Err(e) => panic!("{}", e),
+            }
+        )
     }
 
     fn __str__(&self) -> String {
@@ -107,7 +127,7 @@ impl PyInvestStrategies {
 // create python class container "ProdFunc" for DefaultProd
 #[pyclass(name = "ProdFunc")]
 #[derive(Clone)]
-pub struct PyDefaultProd(DefaultProd<Actions>);
+pub struct PyDefaultProd(DefaultProd);
 
 #[pymethods]
 impl PyDefaultProd {
@@ -141,11 +161,15 @@ impl PyDefaultProd {
             self.0.beta.to_owned()
         ).expect("invalid production function parameters"))
     }
+
+    fn __str__(&self) -> String {
+        format!("{:?}", self.0)
+    }
 }
 
 #[pyclass(name = "InvestProdFunc")]
 #[derive(Clone)]
-pub struct PyInvestProd(DefaultProd<InvestActions>);
+pub struct PyInvestProd(DefaultProd);
 
 #[pymethods]
 impl PyInvestProd {
@@ -170,6 +194,10 @@ impl PyInvestProd {
         let (s, p) = self.0.f(&actions.0);
         (s.into_pyarray(py), p.into_pyarray(py))
     }
+
+    fn __str__(&self) -> String {
+        format!("{:?}", self.0)
+    }
 }
 
 // create python class container "LinearReward" for LinearReward
@@ -192,13 +220,17 @@ impl PyLinearReward {
             lose_b.as_array().to_owned(),
         ).expect("invalid reward function parameters"))
     }
+
+    fn __str__(&self) -> String {
+        format!("{:?}", self.0)
+    }
 }
 
 // create python class container "PayoffFunc" for DefaultPayoff
 
 type DefaultPayoff_ = DefaultPayoff<
     Actions,
-    DefaultProd<Actions>,
+    DefaultProd,
     WinnerOnlyRisk,
     DefaultCSF,
     LinearReward,
@@ -213,7 +245,7 @@ pub struct PyDefaultPayoff(DefaultPayoff_);
 #[pymethods]
 impl PyDefaultPayoff {
     #[new]
-    pub fn new(
+    fn new(
         prod_func: PyDefaultProd,
         reward_func: PyLinearReward,
         theta: PyReadonlyArray1<f64>,
@@ -230,18 +262,29 @@ impl PyDefaultPayoff {
         ).expect("invalid payoff function parameters"))
     }
 
-    pub fn u_i(&self, i: usize, actions: &PyActions) -> f64 {
+    fn u_i(&self, i: usize, actions: &PyActions) -> f64 {
         self.0.u_i(i, &actions.0)
     }
 
-    pub fn u<'py>(&self, py: Python<'py>, actions: &PyActions) -> &'py PyArray1<f64> {
+    fn u<'py>(&self, py: Python<'py>, actions: &PyActions) -> &'py PyArray1<f64> {
         self.0.u(&actions.0).into_pyarray(py)
     }
+
+    fn __str__(&self) -> String {
+        format!(
+            "PayoffFunc (PyDefaultPayoff):\nprod_func = {}\nreward_func = {}\ntheta = {}\nd = {}\nr = {}",
+            self.0.prod_func,
+            self.0.reward_func,
+            self.0.risk_func.theta,
+            self.0.disaster_cost.d,
+            self.0.cost_func.r
+        )
+    } 
 }
 
 type InvestPayoff_ = DefaultPayoff<
     InvestActions,
-    DefaultProd<InvestActions>,
+    DefaultProd,
     WinnerOnlyRisk,
     DefaultCSF,
     LinearReward,
@@ -284,6 +327,18 @@ impl PyInvestPayoff {
     pub fn u<'py>(&self, py: Python<'py>, actions: &PyInvestActions) -> &'py PyArray1<f64> {
         self.0.u(&actions.0).into_pyarray(py)
     }
+
+    fn __str__(&self) -> String {
+        format!(
+            "InvestPayoffFunc (PyInvestPayoff):\nprod_func = {}\nreward_func = {}\ntheta = {}\nd = {}\nr_x = {}\nr_inv = {}",
+            self.0.prod_func,
+            self.0.reward_func,
+            self.0.risk_func.theta,
+            self.0.disaster_cost.d,
+            self.0.cost_func.r_x,
+            self.0.cost_func.r_inv,
+        )
+    } 
 }
 
 // create python class container for SolverOptions
@@ -307,7 +362,7 @@ impl PySolverOptions {
         nm_max_iters = "100",
         nm_tol = "1e-8",
     )]
-    pub fn new(
+    fn new(
         max_iters: u64,
         tol: f64,
         init_simplex_size: f64,
@@ -315,6 +370,13 @@ impl PySolverOptions {
         nm_tol: f64,
     ) -> Self {
         PySolverOptions { max_iters, tol, init_simplex_size, nm_max_iters, nm_tol }
+    }
+
+    fn __str__(&self) -> String {
+        format!(
+            "SolverOptions:\nmax_iters = {}\ntol = {}\ninit_simplex_size = {}\nnm_max_iters = {}\nnm_tol = {}",
+            self.max_iters, self.tol, self.init_simplex_size, self.nm_max_iters, self.nm_tol
+        )
     }
 }
 
@@ -326,7 +388,7 @@ pub struct PyExponentialDiscounter(ExponentialDiscounter<DefaultPayoff_, Default
 #[pymethods]
 impl PyExponentialDiscounter {
     #[new]
-    pub fn new(states: &PyList, gammas: Vec<f64>) -> Self {
+    fn new(states: &PyList, gammas: Vec<f64>) -> Self {
         let states_vec = states.iter().map(|s|
             s.extract::<PyDefaultPayoff>()
              .expect("states should contain only objects of type PyDefaultPayoff").0
@@ -334,15 +396,15 @@ impl PyExponentialDiscounter {
         PyExponentialDiscounter(ExponentialDiscounter::new(states_vec, gammas))
     }
 
-    pub fn u_i(&self, i: usize, strategies: &PyStrategies) -> f64 {
+    fn u_i(&self, i: usize, strategies: &PyStrategies) -> f64 {
         self.0.u_i(i, &strategies.0)
     }
 
-    pub fn u<'py>(&self, py: Python<'py>, strategies: &PyStrategies) -> &'py PyArray1<f64> {
+    fn u<'py>(&self, py: Python<'py>, strategies: &PyStrategies) -> &'py PyArray1<f64> {
         self.0.u(&strategies.0).into_pyarray(py)
     }
 
-    pub fn solve(&self, init_guess: PyStrategies, options: &PySolverOptions) -> PyResult<PyStrategies> {
+    fn solve(&self, init_guess: PyStrategies, options: &PySolverOptions) -> PyResult<PyStrategies> {
         let solver_options = SolverOptions {
             init_guess: init_guess.0,
             max_iters: options.max_iters,
@@ -367,19 +429,19 @@ pub struct PyInvestExpDiscounter(InvestExponentialDiscounter<InvestPayoff_>);
 #[pymethods]
 impl PyInvestExpDiscounter {
     #[new]
-    pub fn new(state0: PyInvestPayoff, gammas: Vec<f64>) -> Self {
+    fn new(state0: PyInvestPayoff, gammas: Vec<f64>) -> Self {
         PyInvestExpDiscounter(InvestExponentialDiscounter::new(state0.0, gammas))
     }
 
-    pub fn u_i(&self, i: usize, strategies: &PyInvestStrategies) -> f64 {
+    fn u_i(&self, i: usize, strategies: &PyInvestStrategies) -> f64 {
         self.0.u_i(i, &strategies.0)
     }
 
-    pub fn u<'py>(&self, py: Python<'py>, strategies: &PyInvestStrategies) -> &'py PyArray1<f64> {
+    fn u<'py>(&self, py: Python<'py>, strategies: &PyInvestStrategies) -> &'py PyArray1<f64> {
         self.0.u(&strategies.0).into_pyarray(py)
     }
 
-    pub fn solve(&self, init_guess: PyInvestStrategies, options: &PySolverOptions) -> PyResult<PyInvestStrategies> {
+    fn solve(&self, init_guess: PyInvestStrategies, options: &PySolverOptions) -> PyResult<PyInvestStrategies> {
         let solver_options = SolverOptions {
             init_guess: init_guess.0,
             max_iters: options.max_iters,

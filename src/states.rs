@@ -78,14 +78,14 @@ impl<U: PayoffFunc<Act = Actions>, T: State<U>> PayoffAggregator for Exponential
 
 #[derive(Clone)]
 pub struct InvestExponentialDiscounter<T>
-where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
+where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
 {
     pub state0: T,
     pub gammas: Vec<f64>,
 }
 
 impl<T> InvestExponentialDiscounter<T>
-where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
+where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
 {
     pub fn new(state0: T, gammas: Vec<f64>) -> Self {
         InvestExponentialDiscounter { state0, gammas }
@@ -101,7 +101,7 @@ where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
 }
 
 impl<T> PayoffAggregator for InvestExponentialDiscounter<T>
-where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<Act = InvestActions>
+where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
 {
     type Strat = InvestStrategies;
 

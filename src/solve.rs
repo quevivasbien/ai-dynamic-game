@@ -36,7 +36,7 @@ impl<S: StrategyType, T: PayoffAggregator<Strat = S>> CostFunction for PlayerObj
 
     fn cost(&self, params: &Self::Param) -> Result<Self::Output, argmin::core::Error> {
         let mut strategies = self.base_strategies.clone();
-        strategies.data_mut().slice_mut(s![self.i, .., ..]).assign(
+        strategies.data_mut().slice_mut(s![.., self.i, ..]).assign(
             &Array::from_shape_vec(
                 (self.base_strategies.t(), self.base_strategies.nparams()),
                 params.iter().map(|x| x.exp()).collect(),
@@ -60,7 +60,7 @@ fn create_simplex(init_guess: ArrayView<f64, Ix2>, init_simplex_size: f64) -> Ve
 
 fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat: &S, agg: &T, options: &NMOptions) -> Result<Array<f64, Ix2>, argmin::core::Error> {
     let init_simplex = create_simplex(
-        strat.data().slice(s![i, .., ..]),
+        strat.data().slice(s![.., i, ..]),
         options.init_simplex_size
     );
     let obj = PlayerObjective {
@@ -85,7 +85,7 @@ where S: StrategyType, T: PayoffAggregator<Strat = S>
         solve_for_i(i, strat, agg, nm_options)
     }).collect::<Result<Vec<_>,_>>()?;
     for (i, x) in new_data.iter().enumerate() {
-        strat.data_mut().slice_mut(s![i, .., ..]).assign(x);
+        strat.data_mut().slice_mut(s![.., i, ..]).assign(x);
     }
     Ok(())
 }

@@ -19,12 +19,12 @@ pub trait PayoffFunc: Clone + Send + Sync {
 #[derive(Clone)]
 pub struct DefaultPayoff<A, T, U, V, W, X, Y>
 where A: ActionType,
-      T: ProdFunc<Act = A>,
+      T: ProdFunc<A>,
       U: RiskFunc,
       V: CSF,
       W: RewardFunc,
       X: DisasterCost,
-      Y: CostFunc<Act = A>,
+      Y: CostFunc<A>,
 {
     pub n: usize,
     pub prod_func: T,
@@ -33,16 +33,17 @@ where A: ActionType,
     pub reward_func: W,
     pub disaster_cost: X,
     pub cost_func: Y,
+    phantom: std::marker::PhantomData<A>,
 }
 
 impl<A, T, U, V, W, X, Y> DefaultPayoff<A, T, U, V, W, X, Y>
 where A: ActionType,
-      T: ProdFunc<Act = A>,
+      T: ProdFunc<A>,
       U: RiskFunc,
       V: CSF,
       W: RewardFunc,
       X: DisasterCost,
-      Y: CostFunc<Act = A>,
+      Y: CostFunc<A>,
 {
     pub fn new(
         prod_func: T, risk_func: U, csf: V, reward_func: W, disaster_cost: X, cost_func: Y
@@ -63,18 +64,19 @@ where A: ActionType,
             reward_func,
             disaster_cost,
             cost_func,
+            phantom: std::marker::PhantomData,
         })
     }
 }
 
 impl<A, T, U, V, W, X, Y> PayoffFunc for DefaultPayoff<A, T, U, V, W, X, Y>
 where A: ActionType,
-      T: ProdFunc<Act = A>,
+      T: ProdFunc<A>,
       U: RiskFunc,
       V: CSF,
       W: RewardFunc,
       X: DisasterCost,
-      Y: CostFunc<Act = A>,
+      Y: CostFunc<A>,
 {
     type Act = A;
     fn u_i(&self, i: usize, actions: &A) -> f64 {
@@ -125,16 +127,15 @@ where A: ActionType,
     }
 }
 
-impl<A, T, U, V, W, X, Y> MutatesOnAction for DefaultPayoff<A, T, U, V, W, X, Y>
+impl<A, T, U, V, W, X, Y> MutatesOnAction<A> for DefaultPayoff<A, T, U, V, W, X, Y>
 where A: ActionType,
-      T: ProdFunc<Act = A> + MutatesOnAction<Act = A>,
+      T: ProdFunc<A> + MutatesOnAction<A>,
       U: RiskFunc,
       V: CSF,
       W: RewardFunc,
       X: DisasterCost,
-      Y: CostFunc<Act = A>,
+      Y: CostFunc<A>,
 {
-    type Act = A;
     fn mutate_on_action_inplace(mut self, action: &A) -> Self {
         self.prod_func = self.prod_func.mutate_on_action_inplace(action);
         self
