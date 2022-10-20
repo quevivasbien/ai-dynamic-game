@@ -14,23 +14,26 @@ pub mod risk_func;
 pub mod states;
 
 pub mod solve;
+pub mod scenarios;
 
 pub mod pybindings;
-
+use pybindings::*;
 
 #[pymodule]
 fn dynapai(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<pybindings::PyActions>()?;
-    m.add_class::<pybindings::PyStrategies>()?;
-    m.add_class::<pybindings::PyDefaultProd>()?;
-    m.add_class::<pybindings::PyLinearReward>()?;
-    m.add_class::<pybindings::PyDefaultPayoff>()?;
-    m.add_class::<pybindings::PySolverOptions>()?;
-    m.add_class::<pybindings::PyExponentialDiscounter>()?;
-    m.add_class::<pybindings::PyInvestActions>()?;
-    m.add_class::<pybindings::PyInvestStrategies>()?;
-    m.add_class::<pybindings::PyInvestProd>()?;
-    m.add_class::<pybindings::PyInvestPayoff>()?;
-    m.add_class::<pybindings::PyInvestExpDiscounter>()?;
+    m.add_class::<PyActions>()?;
+    m.add_class::<PyStrategies>()?;
+    m.add_class::<PyDefaultProd>()?;
+    m.add_class::<PyLinearReward>()?;
+    m.add_class::<PyDefaultPayoff>()?;
+    m.add_class::<PySolverOptions>()?;
+    m.add_class::<PyExponentialDiscounter>()?;
+    m.add_class::<PyInvestActions>()?;
+    m.add_class::<PyInvestStrategies>()?;
+    m.add_class::<PyInvestProd>()?;
+    m.add_class::<PyInvestPayoff>()?;
+    m.add_class::<PyInvestExpDiscounter>()?;
+    m.add_class::<PyScenario>()?;
+    m.add_class::<PyInvestScenario>()?;
     Ok(())
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray3, IntoPyArray};
 use pyo3::exceptions::PyException;
 use pyo3::{prelude::*, types::PyList};
@@ -9,6 +11,7 @@ use crate::payoff_func::{PayoffFunc, DefaultPayoff};
 use crate::prod_func::{ProdFunc, DefaultProd};
 use crate::reward_func::LinearReward;
 use crate::risk_func::WinnerOnlyRisk;
+use crate::scenarios::Scenario;
 use crate::solve::{NMOptions, SolverOptions, solve};
 use crate::states::{PayoffAggregator, ExponentialDiscounter, InvestExponentialDiscounter};
 use crate::strategies::*;
@@ -380,8 +383,21 @@ impl PySolverOptions {
     }
 }
 
-// create python class container "Aggregator" for ExponentialDiscounter
+fn expand_options<S: StrategyType>(init_guess: S, options: &PySolverOptions) -> SolverOptions<S> {
+    SolverOptions {
+        init_guess: init_guess,
+        max_iters: options.max_iters,
+        tol: options.tol,
+        nm_options: NMOptions {
+            init_simplex_size: options.init_simplex_size,
+            max_iters: options.nm_max_iters,
+            tol: options.nm_tol,
+        }
+    }
+}
 
+// create python class container "Aggregator" for ExponentialDiscounter
+#[derive(Clone)]
 #[pyclass(name = "Aggregator")]
 pub struct PyExponentialDiscounter(ExponentialDiscounter<DefaultPayoff_, DefaultPayoff_>);
 
@@ -405,16 +421,7 @@ impl PyExponentialDiscounter {
     }
 
     fn solve(&self, init_guess: PyStrategies, options: &PySolverOptions) -> PyResult<PyStrategies> {
-        let solver_options = SolverOptions {
-            init_guess: init_guess.0,
-            max_iters: options.max_iters,
-            tol: options.tol,
-            nm_options: NMOptions {
-                init_simplex_size: options.init_simplex_size,
-                max_iters: options.nm_max_iters,
-                tol: options.nm_tol,
-            }
-        };
+        let solver_options = expand_options(init_guess.0, &options);
         let res = solve(&self.0, &solver_options);
         match res {
             Ok(res) => Ok(PyStrategies(res)),
@@ -423,6 +430,7 @@ impl PyExponentialDiscounter {
     }
 }
 
+#[derive(Clone)]
 #[pyclass(name = "InvestAggregator")]
 pub struct PyInvestExpDiscounter(InvestExponentialDiscounter<InvestPayoff_>);
 
@@ -442,20 +450,71 @@ impl PyInvestExpDiscounter {
     }
 
     fn solve(&self, init_guess: PyInvestStrategies, options: &PySolverOptions) -> PyResult<PyInvestStrategies> {
-        let solver_options = SolverOptions {
-            init_guess: init_guess.0,
-            max_iters: options.max_iters,
-            tol: options.tol,
-            nm_options: NMOptions {
-                init_simplex_size: options.init_simplex_size,
-                max_iters: options.nm_max_iters,
-                tol: options.nm_tol,
-            }
-        };
+        let solver_options = expand_options(init_guess.0, &options);
         let res = solve(&self.0, &solver_options);
         match res {
             Ok(res) => Ok(PyInvestStrategies(res)),
             Err(e) => Err(PyException::new_err(format!("{}", e))),
+        }
+    }
+}
+
+#[pyclass(name = "Scenario")]
+pub struct PyScenario(Scenario<ExponentialDiscounter<DefaultPayoff_, DefaultPayoff_>>);
+
+#[pymethods]
+impl PyScenario {
+    #[new]
+    fn new(aggs: &PyList) -> Self {
+        let aggs_vec = aggs.iter().map(|a|
+            Arc::new(
+                a.extract::<PyExponentialDiscounter>()
+                .expect("aggs should contain only objects of type PyExponentialDiscounter").0
+            )
+        ).collect();
+        PyScenario(Scenario::new(aggs_vec))
+    }
+
+    fn solve<'py>(&self, py: Python<'py>, init_guess: PyStrategies, options: &PySolverOptions) -> PyResult<&'py PyList> {
+        let solver_options = expand_options(init_guess.0, &options);
+        match self.0.solve(&solver_options) {
+            Ok(res) => {
+                let iter = res.into_iter().map(|s|
+                    PyCell::new(py, PyStrategies(s)).unwrap()
+                );
+                Ok(PyList::new(py, iter))
+            },
+            Err(e) => Err(PyException::new_err(format!("{}", e)))
+        }
+    }
+}
+
+#[pyclass(name = "InvestScenario")]
+pub struct PyInvestScenario(Scenario<InvestExponentialDiscounter<InvestPayoff_>>);
+
+#[pymethods]
+impl PyInvestScenario {
+    #[new]
+    fn new(aggs: &PyList) -> Self {
+        let aggs_vec = aggs.iter().map(|a|
+            Arc::new(
+                a.extract::<PyInvestExpDiscounter>()
+                .expect("aggs should contain only objects of type PyInvestExpDiscounter").0
+            )
+        ).collect();
+        PyInvestScenario(Scenario::new(aggs_vec))
+    }
+
+    fn solve<'py>(&self, py: Python<'py>, init_guess: PyInvestStrategies, options: &PySolverOptions) -> PyResult<&'py PyList> {
+        let solver_options = expand_options(init_guess.0, &options);
+        match self.0.solve(&solver_options) {
+            Ok(res) => {
+                let iter = res.into_iter().map(|s|
+                    PyCell::new(py, PyInvestStrategies(s)).unwrap()
+                );
+                Ok(PyList::new(py, iter))
+            },
+            Err(e) => Err(PyException::new_err(format!("{}", e)))
         }
     }
 }

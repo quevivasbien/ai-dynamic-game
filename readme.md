@@ -16,13 +16,13 @@ You can interact directly with the Rust code, or use the provided Python binding
 
 Start by creating a new virtual environment: if you have Conda (e.g., Anaconda), you can do that by running
 ```bash
-conda create --name venv python=3.7
+conda create --name py37 python=3.7
 ```
 You can create your venv in some other way and call it whatever you want, but you do need the Python version to be at least 3.7.
 
 You'll then need to activate the virtual environment. With Conda:
 ```bash
-conda activate venv
+conda activate py37
 ```
 
 You can then install the maturin build tool in this environment with

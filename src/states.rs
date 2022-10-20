@@ -32,6 +32,7 @@ pub trait PayoffAggregator: Send + Sync {
     }
 }
 
+#[derive(Clone)]
 pub struct ExponentialDiscounter<U: PayoffFunc<Act = Actions>, T: State<U>> {
     pub states: Vec<T>,
     pub gammas: Vec<f64>,
