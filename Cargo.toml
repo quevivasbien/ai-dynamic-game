@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "dynapai"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
 
 [dependencies]
 argmin-math = "0.2.1"
@@ -17,3 +17,6 @@ rayon = "1.5.3"
 [dependencies.pyo3]
 version = "0.17.1"
 features = ["extension-module"]
+
+[profile.release]
+debug = true

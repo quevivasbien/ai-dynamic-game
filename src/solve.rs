@@ -15,11 +15,32 @@ pub struct SolverOptions<S: StrategyType> {
     pub nm_options: NMOptions,
 }
 
+impl<S: StrategyType> SolverOptions<S> {
+    pub fn from_init_guess(init_guess: S) -> SolverOptions<S> {
+        SolverOptions {
+            init_guess,
+            max_iters: 200,
+            tol: 1e-6,
+            nm_options: NMOptions::default(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct NMOptions {
     pub init_simplex_size: f64,
     pub max_iters: u64,
     pub tol: f64,
+}
+
+impl Default for NMOptions {
+    fn default() -> Self {
+        NMOptions {
+            init_simplex_size: 1.0,
+            max_iters: 200,
+            tol: 1e-8,
+        }
+    }
 }
 
 struct PlayerObjective<'a, S: StrategyType, T: PayoffAggregator<Strat = S>>{
