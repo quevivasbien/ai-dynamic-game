@@ -4,7 +4,6 @@ extern crate dynapai;
 use numpy::ndarray::{Array};
 use std::sync::Arc;
 use dynapai::*;
-use dynapai::strategies::*;
 
 const NSTEPS: usize = 10;
 const NTHREADS: usize = 4;
@@ -24,16 +23,6 @@ fn main() {
         cost_func::FixedInvestCost::from_elems(2, 0.1, 0.1),
     ).unwrap();
 
-    let actions = InvestActions::from_inputs(
-        Array::from_vec(vec![1., 1.]),
-        Array::from_vec(vec![1., 1.]),
-        Array::from_vec(vec![1., 1.]),
-        Array::from_vec(vec![1., 1.]),
-    ).unwrap();
-    
-    
-    let strategies = InvestStrategies::from_actions(vec![actions; NSTEPS]).unwrap();
-
     let agg = Arc::new(states::InvestExponentialDiscounter::new(
         pfunc, 
         vec![0.9, 0.8]
@@ -41,10 +30,10 @@ fn main() {
 
     // solve the same problem NTHREADS times in parallel
     let scenario = scenarios::Scenario::new(vec![agg; NTHREADS]);
-    let options = solve::SolverOptions::from_init_guess(strategies);
+    let options = solve::SolverOptions::random_init(NSTEPS, 2, 4).unwrap();
     let res = scenario.solve(&options).unwrap();
     println!("Got result:");
     for (i, r) in res.iter().enumerate() {
-        println!("Problem {} of {}:\n{}\n", i, res.len(), r);
+        println!("Problem {} of {}:\n{}\n", i + 1, res.len(), r);
     }
 }

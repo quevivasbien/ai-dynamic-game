@@ -16,13 +16,16 @@ pub struct SolverOptions<S: StrategyType> {
 }
 
 impl<S: StrategyType> SolverOptions<S> {
-    pub fn from_init_guess(init_guess: S) -> SolverOptions<S> {
+    pub fn from_init_guess(init_guess: S) -> Self {
         SolverOptions {
             init_guess,
             max_iters: 200,
             tol: 1e-6,
             nm_options: NMOptions::default(),
         }
+    }
+    pub fn random_init(t: usize, n: usize, nparams: usize) -> Result<Self, String> {
+        Ok(Self::from_init_guess(S::random(t, n, nparams, -1., 0.1)?))
     }
 }
 

@@ -1,5 +1,6 @@
 use std::fmt;
-use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack, ArrayViewMut, Slice, ShapeError, s};
+use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack, ArrayViewMut, Slice, s};
+use ndarray_rand::{RandomExt, rand_distr::LogNormal};
 
 pub trait ActionType: Clone + Send + Sync {
     fn data(&self) -> ArrayView<f64, Ix2>;
@@ -143,14 +144,25 @@ pub trait StrategyType: Clone + Send + Sync {
     fn n(&self) -> usize { self.data().shape()[1] }
     fn nparams(&self) -> usize { self.data().shape()[2] }
 
-    fn from_array(x: Array<f64, Ix3>) -> Self;
-    fn from_actions(actions: Vec<Self::Act>) -> Result<Self, ShapeError> {
+    fn from_array(x: Array<f64, Ix3>) -> Result<Self, String>;
+    fn from_actions(actions: Vec<Self::Act>) -> Result<Self, String> {
         let data = stack(
             Axis(0),
             &actions.iter().map(
                 |a| a.data()
-            ).collect::<Vec<_>>())?;
-        Ok(Self::from_array(data))
+            ).collect::<Vec<_>>());
+        match data {
+            Ok(data) => Self::from_array(data),
+            Err(e) => Err(format!("Error when creating strategy from actions: {}", e))
+        }
+        
+    }
+    fn random(t: usize, n: usize, nparams: usize, mu: f64, sigma: f64) -> Result<Self, String> {
+        let dist = match LogNormal::new(mu, sigma) {
+            Ok(d) => d,
+            Err(e) => return Err(format!("Error when creating LogNormal distribution: {}", e))
+        };
+        Self::from_array(Array::random((t, n, nparams), dist))
     }
     
     fn to_actions(self) -> Vec<Self::Act> {
@@ -186,12 +198,15 @@ impl StrategyType for Strategies {
         self.x.view_mut()
     }
 
-    fn from_array(x: Array<f64, Ix3>) -> Self {
-        Strategies { 
+    fn from_array(x: Array<f64, Ix3>) -> Result<Self, String> {
+        if x.shape()[2] != 2 {
+            return Err(format!("Strategies must have 2 columns, but has {}", x.shape()[2]));
+        }
+        Ok(Strategies { 
             t: x.shape()[0],
             n: x.shape()[1],
             x
-        }
+        })
     }
 }
 
@@ -235,12 +250,15 @@ impl StrategyType for InvestStrategies {
         self.x.view_mut()
     }
 
-    fn from_array(x: Array<f64, Ix3>) -> Self {
-        InvestStrategies { 
+    fn from_array(x: Array<f64, Ix3>) -> Result<Self, String> {
+        if x.shape()[2] != 4 {
+            return Err(format!("InvestStrategies must have 4 columns, but has {}", x.shape()[2]));
+        }
+        Ok(InvestStrategies { 
             t: x.shape()[0],
             n: x.shape()[1],
             x
-        }
+        })
     }
 }
 

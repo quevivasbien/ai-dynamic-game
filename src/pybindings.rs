@@ -75,7 +75,10 @@ pub struct PyStrategies(Strategies);
 impl PyStrategies {
     #[new]
     fn from_array(x: PyReadonlyArray3<f64>) -> Self {
-        PyStrategies(Strategies::from_array(x.as_array().to_owned()))
+        PyStrategies(match Strategies::from_array(x.as_array().to_owned()) {
+            Ok(strategies) => strategies,
+            Err(e) => panic!("{}", e),
+        })
     }
 
     #[staticmethod]
@@ -105,7 +108,10 @@ pub struct PyInvestStrategies(InvestStrategies);
 impl PyInvestStrategies {
     #[new]
     fn from_array(x: PyReadonlyArray3<f64>) -> Self {
-        PyInvestStrategies(InvestStrategies::from_array(x.as_array().to_owned()))
+        PyInvestStrategies(match InvestStrategies::from_array(x.as_array().to_owned()) {
+            Ok(strategies) => strategies,
+            Err(e) => panic!("{}", e),
+        })
     }
 
     #[staticmethod]

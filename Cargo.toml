@@ -12,6 +12,7 @@ crate-type = ["cdylib", "lib"]
 argmin-math = "0.2.1"
 argmin = "0.7.0"
 numpy = "0.17"
+ndarray-rand = "0.14.0"
 rayon = "1.5.3"
 
 [dependencies.pyo3]
