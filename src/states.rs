@@ -4,10 +4,14 @@ use crate::strategies::*;
 use crate::payoff_func::PayoffFunc;
 
 pub trait State<T: PayoffFunc>: Clone + Send + Sync {
+    fn n(&self) -> usize;
     fn belief(&self, i: usize) -> &T;
 }
 
 impl<T: PayoffFunc> State<T> for T {
+    fn n(&self) -> usize {
+        self.n()
+    }
     fn belief(&self, _i: usize) -> &Self {
         self
     }
@@ -15,17 +19,35 @@ impl<T: PayoffFunc> State<T> for T {
 
 #[derive(Clone)]
 pub struct HetBeliefs<T: PayoffFunc> {
-    pub beliefs: Vec<T>,
+    n: usize,
+    beliefs: Vec<T>,
 }
 
 impl<T: PayoffFunc> State<T> for HetBeliefs<T> {
+    fn n(&self) -> usize {
+        self.n
+    }
     fn belief(&self, i: usize) -> &T {
         &self.beliefs[i]
     }
 }
 
+impl<T: PayoffFunc> HetBeliefs<T> {
+    pub fn new(beliefs: Vec<T>) -> Result<HetBeliefs<T>, &'static str> {
+        if beliefs.len() == 0 {
+            return Err("When creating new HetBeliefs: beliefs must have length > 0");
+        }
+        let n = beliefs[0].n();
+        if beliefs.iter().any(|b| b.n() != n) {
+            return Err("When creating new HetBeliefs: All beliefs must have the same n");
+        }
+        Ok(HetBeliefs { n, beliefs })
+    }
+}
+
 pub trait PayoffAggregator: Send + Sync {
     type Strat: StrategyType;
+    fn n(&self) -> usize;
     fn u_i(&self, i: usize, strategies: &Self::Strat) -> f64;
     fn u(&self, strategies: &Self::Strat) -> Array<f64, Ix1> {
         Array::from_iter((0..strategies.n()).map(|i| self.u_i(i, strategies)))
@@ -34,26 +56,39 @@ pub trait PayoffAggregator: Send + Sync {
 
 #[derive(Clone)]
 pub struct ExponentialDiscounter<U: PayoffFunc<Act = Actions>, T: State<U>> {
+    n: usize,
     pub states: Vec<T>,
     pub gammas: Vec<f64>,
     phantom: std::marker::PhantomData<U>,
 }
 
 impl<U: PayoffFunc<Act = Actions>, T: State<U>> ExponentialDiscounter<U, T> {
-    pub fn new(states: Vec<T>, gammas: Vec<f64>) -> Self {
-        ExponentialDiscounter {
+    pub fn new(states: Vec<T>, gammas: Vec<f64>) -> Result<Self, &'static str> {
+        if states.len() == 0 {
+            return Err("When creating new ExponentialDiscounter: states must have length > 0");
+        }
+        let n = states[0].n();
+        if states.iter().any(|s| s.n() != n) {
+            return Err("When creating new ExponentialDiscounter: All states must have the same n");
+        }
+        Ok(ExponentialDiscounter {
+            n,
             states,
             gammas,
             phantom: std::marker::PhantomData,
-        }
+        })
     }
     pub fn new_static(state0: T, t: usize, gammas: Vec<f64>) -> Self {
-        Self::new(vec![state0; t], gammas)
+        Self::new(vec![state0; t], gammas).unwrap()
     }
 }
 
 impl<U: PayoffFunc<Act = Actions>, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T> {
     type Strat = Strategies;
+
+    fn n(&self) -> usize {
+        self.n
+    }
 
     fn u(&self, strategies: &Strategies) -> Array<f64, Ix1> {
         assert_eq!(self.states.len(), strategies.t(), "Number of states should match number of time periods in strategies");
@@ -105,6 +140,10 @@ impl<T> PayoffAggregator for InvestExponentialDiscounter<T>
 where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
 {
     type Strat = InvestStrategies;
+
+    fn n(&self) -> usize {
+        self.state0.n()
+    }
 
     fn u(&self, strategies: &InvestStrategies) -> Array<f64, Ix1> {
         let actions_seq = strategies.clone().to_actions();

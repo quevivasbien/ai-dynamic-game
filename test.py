@@ -89,7 +89,7 @@ print("Optimal invest strategies:", res, sep = '\n')
 print("Payoff from optimal invest strategies:", agg.u(res))
 print()
 
-print("Trying parallel solve of invest scenarios")
+print("Trying [parallel] solve of scenario")
 scenario = dp.InvestScenario([agg, agg])
 time0 = time()
 res = scenario.solve(init_guess = strategies, options = solverOptions)

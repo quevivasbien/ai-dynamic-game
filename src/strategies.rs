@@ -6,9 +6,16 @@ pub trait ActionType: Clone + Send + Sync {
     fn data(&self) -> ArrayView<f64, Ix2>;
     fn data_mut(&mut self) -> ArrayViewMut<f64, Ix2>;
     fn n(&self) -> usize { self.data().shape()[0] }
-    fn nparams(&self) -> usize { self.data().shape()[1] }
+    fn nparams() -> usize;  // Should be equal to data().shape()[1]
 
-    fn from_array(data: Array<f64, Ix2>) -> Result<Self, String>;
+    fn from_array_unchecked(data: Array<f64, Ix2>) -> Self;
+    fn from_array(data: Array<f64, Ix2>) -> Result<Self, String> {
+        if data.shape()[1] != Self::nparams() {
+            Err(format!("Data for ActionType should have {} columns but got {}", Self::nparams(), data.shape()[1]))
+        } else {
+            Ok(Self::from_array_unchecked(data))
+        }
+    }
 
     fn xs(&self) -> ArrayView<f64, Ix1>;
     fn xp(&self) -> ArrayView<f64, Ix1>;
@@ -19,7 +26,7 @@ pub trait ActionType: Clone + Send + Sync {
 pub struct Actions(Array<f64, Ix2>);
 
 impl ActionType for Actions {
-    fn nparams(&self) -> usize { 2 }
+    fn nparams() -> usize { 2 }
 
     fn data(&self) -> ArrayView<f64, Ix2> {
         self.0.view()
@@ -28,11 +35,8 @@ impl ActionType for Actions {
         self.0.view_mut()
     }
 
-    fn from_array(x: Array<f64, Ix2>) -> Result<Self, String> {
-        if x.shape()[1] != 2 {
-            return Err(format!("Actions must have 2 columns, but has {}", x.shape()[1]));
-        }
-        Ok(Actions(x))
+    fn from_array_unchecked(data: Array<f64, Ix2>) -> Self {
+        Actions(data)
     }
 
     fn xs(&self) -> ArrayView<f64, Ix1> {
@@ -64,7 +68,7 @@ impl fmt::Display for Actions {
 pub struct InvestActions(Array<f64, Ix2>);
 
 impl ActionType for InvestActions {
-    fn nparams(&self) -> usize { 4 }
+    fn nparams() -> usize { 4 }
     
     fn data(&self) -> ArrayView<f64, Ix2> {
         self.0.view()
@@ -73,11 +77,8 @@ impl ActionType for InvestActions {
         self.0.view_mut()
     }
 
-    fn from_array(x: Array<f64, Ix2>) -> Result<Self, String> {
-        if x.shape()[1] != 4 {
-            return Err(format!("InvestActions must have 4 columns, but has {}", x.shape()[1]));
-        }
-        Ok(InvestActions(x))
+    fn from_array_unchecked(data: Array<f64, Ix2>) -> Self {
+        InvestActions(data)
     }
 
     fn xs(&self) -> ArrayView<f64, Ix1> {
@@ -142,9 +143,16 @@ pub trait StrategyType: Clone + Send + Sync {
 
     fn t(&self) -> usize { self.data().shape()[0] }
     fn n(&self) -> usize { self.data().shape()[1] }
-    fn nparams(&self) -> usize { self.data().shape()[2] }
+    fn nparams() -> usize { Self::Act::nparams() } // should be equal to data().shape()[2]
 
-    fn from_array(x: Array<f64, Ix3>) -> Result<Self, String>;
+    fn from_array_unchecked(data: Array<f64, Ix3>) -> Self;
+    fn from_array(data: Array<f64, Ix3>) -> Result<Self, String> {
+        if data.shape()[2] != Self::nparams() {
+            Err(format!("Data for StrategyType should have {} columns but got {}", Self::nparams(), data.shape()[2]))
+        } else {
+            Ok(Self::from_array_unchecked(data))
+        }
+    }
     fn from_actions(actions: Vec<Self::Act>) -> Result<Self, String> {
         let data = stack(
             Axis(0),
@@ -157,12 +165,12 @@ pub trait StrategyType: Clone + Send + Sync {
         }
         
     }
-    fn random(t: usize, n: usize, nparams: usize, mu: f64, sigma: f64) -> Result<Self, String> {
+    fn random(t: usize, n: usize, mu: f64, sigma: f64) -> Result<Self, String> {
         let dist = match LogNormal::new(mu, sigma) {
             Ok(d) => d,
             Err(e) => return Err(format!("Error when creating LogNormal distribution: {}", e))
         };
-        Self::from_array(Array::random((t, n, nparams), dist))
+        Ok(Self::from_array_unchecked(Array::random((t, n, Self::nparams()), dist)))
     }
     
     fn to_actions(self) -> Vec<Self::Act> {
@@ -175,38 +183,20 @@ pub trait StrategyType: Clone + Send + Sync {
 
 // represents actions for n players in t time periods
 #[derive(Clone, Debug)]
-pub struct Strategies {
-    t: usize,
-    n: usize,
-    x: Array<f64, Ix3>,
-}
+pub struct Strategies(Array<f64, Ix3>);
 
 impl StrategyType for Strategies {
     type Act = Actions;
 
-    fn t(&self) -> usize {
-        self.t
-    }
-    fn n(&self) -> usize {
-        self.n
-    }
-    fn nparams(&self) -> usize { 2 }
     fn data(&self) -> ArrayView<f64, Ix3> {
-        self.x.view()
+        self.0.view()
     }
     fn data_mut(&mut self) -> ArrayViewMut<f64, Ix3> {
-        self.x.view_mut()
+        self.0.view_mut()
     }
 
-    fn from_array(x: Array<f64, Ix3>) -> Result<Self, String> {
-        if x.shape()[2] != 2 {
-            return Err(format!("Strategies must have 2 columns, but has {}", x.shape()[2]));
-        }
-        Ok(Strategies { 
-            t: x.shape()[0],
-            n: x.shape()[1],
-            x
-        })
+    fn from_array_unchecked(data: Array<f64, Ix3>) -> Self {
+        Strategies(data)
     }
 }
 
@@ -216,7 +206,7 @@ impl fmt::Display for Strategies {
         let actions_seq = self.clone().to_actions();
         for (t, actions) in actions_seq.iter().enumerate() {
             write!(f, "t = {}: {}", t, actions)?;
-            if t != self.t - 1 {
+            if t != self.t() - 1 {
                 write!(f, "\n")?;
             }
         }
@@ -226,39 +216,22 @@ impl fmt::Display for Strategies {
 
 
 #[derive(Clone)]
-pub struct InvestStrategies {
-    t: usize,
-    n: usize,
-    x: Array<f64, Ix3>,
-}
+pub struct InvestStrategies(Array<f64, Ix3>);
 
 impl StrategyType for InvestStrategies {
     type Act = InvestActions;
 
-    fn t(&self) -> usize {
-        self.t
-    }
-    fn n(&self) -> usize {
-        self.n
-    }
-    fn nparams(&self) -> usize { 4 }
+    fn nparams() -> usize { 4 }
 
     fn data(&self) -> ArrayView<f64, Ix3> {
-        self.x.view()
+        self.0.view()
     }
     fn data_mut(&mut self) -> ArrayViewMut<f64, Ix3> {
-        self.x.view_mut()
+        self.0.view_mut()
     }
 
-    fn from_array(x: Array<f64, Ix3>) -> Result<Self, String> {
-        if x.shape()[2] != 4 {
-            return Err(format!("InvestStrategies must have 4 columns, but has {}", x.shape()[2]));
-        }
-        Ok(InvestStrategies { 
-            t: x.shape()[0],
-            n: x.shape()[1],
-            x
-        })
+    fn from_array_unchecked(data: Array<f64, Ix3>) -> Self {
+        InvestStrategies(data)
     }
 }
 
@@ -267,7 +240,7 @@ impl fmt::Display for InvestStrategies {
         let actions_seq = self.clone().to_actions();
         for (t, actions) in actions_seq.iter().enumerate() {
             write!(f, "t = {}: {}", t, actions)?;
-            if t != self.t - 1 {
+            if t != self.t() - 1 {
                 write!(f, "\n")?;
             }
         }

@@ -12,7 +12,7 @@ use crate::prod_func::{ProdFunc, DefaultProd};
 use crate::reward_func::LinearReward;
 use crate::risk_func::WinnerOnlyRisk;
 use crate::scenarios::Scenario;
-use crate::solve::{NMOptions, SolverOptions, solve};
+use crate::solve::{InitGuess, NMOptions, SolverOptions, solve};
 use crate::states::{PayoffAggregator, ExponentialDiscounter, InvestExponentialDiscounter};
 use crate::strategies::*;
 
@@ -391,7 +391,7 @@ impl PySolverOptions {
 
 fn expand_options<S: StrategyType>(init_guess: S, options: &PySolverOptions) -> SolverOptions<S> {
     SolverOptions {
-        init_guess: init_guess,
+        init_guess: InitGuess::Fixed(init_guess),
         max_iters: options.max_iters,
         tol: options.tol,
         nm_options: NMOptions {
@@ -415,7 +415,12 @@ impl PyExponentialDiscounter {
             s.extract::<PyDefaultPayoff>()
              .expect("states should contain only objects of type PyDefaultPayoff").0
         ).collect();
-        PyExponentialDiscounter(ExponentialDiscounter::new(states_vec, gammas))
+        PyExponentialDiscounter(
+            match ExponentialDiscounter::new(states_vec, gammas) {
+                Ok(discounter) => discounter,
+                Err(e) => panic!("Error when constructing aggregator: {}", e),
+            }
+        )
     }
 
     fn u_i(&self, i: usize, strategies: &PyStrategies) -> f64 {

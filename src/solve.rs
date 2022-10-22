@@ -7,9 +7,18 @@ use crate::states::PayoffAggregator;
 use crate::strategies::*;
 use crate::utils::isapprox_arr;
 
+const INIT_MU: f64 = -1.;
+const INIT_SIGMA: f64 = 0.1;
+
+#[derive(Clone, Debug)]
+pub enum InitGuess<S: StrategyType> {
+    Random(usize),
+    Fixed(S),
+}
+
 #[derive(Clone, Debug)]
 pub struct SolverOptions<S: StrategyType> {
-    pub init_guess: S,
+    pub init_guess: InitGuess<S>,
     pub max_iters: u64,
     pub tol: f64,
     pub nm_options: NMOptions,
@@ -18,14 +27,20 @@ pub struct SolverOptions<S: StrategyType> {
 impl<S: StrategyType> SolverOptions<S> {
     pub fn from_init_guess(init_guess: S) -> Self {
         SolverOptions {
-            init_guess,
+            init_guess: InitGuess::Fixed(init_guess),
             max_iters: 200,
             tol: 1e-6,
             nm_options: NMOptions::default(),
         }
     }
-    pub fn random_init(t: usize, n: usize, nparams: usize) -> Result<Self, String> {
-        Ok(Self::from_init_guess(S::random(t, n, nparams, -1., 0.1)?))
+
+    pub fn random_init(t: usize) -> Self {
+        SolverOptions {
+            init_guess: InitGuess::Random(t),
+            max_iters: 200,
+            tol: 1e-6,
+            nm_options: NMOptions::default(),
+        }
     }
 }
 
@@ -62,7 +77,7 @@ impl<S: StrategyType, T: PayoffAggregator<Strat = S>> CostFunction for PlayerObj
         let mut strategies = self.base_strategies.clone();
         strategies.data_mut().slice_mut(s![.., self.i, ..]).assign(
             &Array::from_shape_vec(
-                (self.base_strategies.t(), self.base_strategies.nparams()),
+                (self.base_strategies.t(), S::nparams()),
                 params.iter().map(|x| x.exp()).collect(),
             )?
         );
@@ -97,7 +112,7 @@ fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat:
         .configure(|state| state.max_iters(options.max_iters))
         .run()?;
     Ok(Array::from_shape_vec(
-        (strat.t(), strat.nparams()),
+        (strat.t(), S::nparams()),
         res.state.best_param.unwrap().iter().map(|x| x.exp()).collect(),
     )?)
 }
@@ -121,7 +136,10 @@ fn within_tol<S: StrategyType>(current: &S, last: &S, tol: f64) -> bool {
 pub fn solve<S, T>(agg: &T, options: &SolverOptions<S>) -> Result<S, argmin::core::Error>
 where S: StrategyType, T: PayoffAggregator<Strat = S>
 {
-    let mut current_strat = options.init_guess.clone();
+    let mut current_strat = match options.init_guess {
+        InitGuess::Random(t) => S::random(t, agg.n(), INIT_MU, INIT_SIGMA).unwrap(),
+        InitGuess::Fixed(ref x) => x.clone(),
+    };
     for i in 0..options.max_iters {
         let last_strat = current_strat.clone();
         update_strat(&mut current_strat, agg, &options.nm_options)?;

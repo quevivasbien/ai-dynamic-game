@@ -10,6 +10,7 @@ use crate::strategies::{ActionType, MutatesOnAction};
 
 pub trait PayoffFunc: Clone + Send + Sync {
     type Act: ActionType;
+    fn n(&self) -> usize;
     fn u_i(&self, i: usize, actions: &Self::Act) -> f64;
     fn u(&self, actions: &Self::Act) -> Array<f64, Ix1> {
         Array::from_iter((0..actions.n()).map(|i| self.u_i(i, actions)))
@@ -79,6 +80,10 @@ where A: ActionType,
       Y: CostFunc<A>,
 {
     type Act = A;
+    fn n(&self) -> usize {
+        self.n
+    }
+
     fn u_i(&self, i: usize, actions: &A) -> f64 {
         let (s, p) = self.prod_func.f(actions);
 

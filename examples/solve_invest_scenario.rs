@@ -30,7 +30,7 @@ fn main() {
 
     // solve the same problem NTHREADS times in parallel
     let scenario = scenarios::Scenario::new(vec![agg; NTHREADS]);
-    let options = solve::SolverOptions::random_init(NSTEPS, 2, 4).unwrap();
+    let options = solve::SolverOptions::random_init(NSTEPS);
     let res = scenario.solve(&options).unwrap();
     println!("Got result:");
     for (i, r) in res.iter().enumerate() {
