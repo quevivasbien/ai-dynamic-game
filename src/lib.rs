@@ -19,6 +19,8 @@ pub mod scenarios;
 pub mod pybindings;
 use pybindings::*;
 
+pub mod plots;
+
 #[pymodule]
 fn dynapai(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyActions>()?;

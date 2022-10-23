@@ -9,11 +9,12 @@ name = "dynapai"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-argmin-math = "0.2.1"
-argmin = "0.7.0"
+argmin-math = "0.2"
+argmin = "0.7"
 numpy = "0.17"
-ndarray-rand = "0.14.0"
-rayon = "1.5.3"
+ndarray-rand = "0.14"
+rayon = "1.5"
+plotters = "0.3"
 
 [dependencies.pyo3]
 version = "0.17.1"
