@@ -2,7 +2,6 @@ extern crate numpy;
 extern crate dynapai;
 
 use numpy::ndarray::{Array};
-use std::sync::Arc;
 use dynapai::*;
 
 const NSTEPS: usize = 10;
@@ -23,10 +22,10 @@ fn main() {
         cost_func::FixedInvestCost::from_elems(2, 0.1, 0.1),
     ).unwrap();
 
-    let agg = Arc::new(states::InvestExponentialDiscounter::new(
+    let agg = states::InvestExponentialDiscounter::new(
         pfunc, 
         vec![0.9, 0.8]
-    ));
+    ).unwrap();
 
     // solve the same problem NTHREADS times in parallel
     let scenario = scenarios::Scenario::new(vec![agg; NTHREADS]);

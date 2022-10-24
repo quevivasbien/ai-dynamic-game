@@ -68,8 +68,11 @@ impl<U: PayoffFunc<Act = Actions>, T: State<U>> ExponentialDiscounter<U, T> {
             return Err("When creating new ExponentialDiscounter: states must have length > 0");
         }
         let n = states[0].n();
-        if states.iter().any(|s| s.n() != n) {
+        if states.iter().any(|s| s.n() != n){
             return Err("When creating new ExponentialDiscounter: All states must have the same n");
+        }
+        if n != gammas.len() {
+            return Err("When creating new ExponentialDiscounter: gammas must have length == n");
         }
         Ok(ExponentialDiscounter {
             n,
@@ -78,8 +81,11 @@ impl<U: PayoffFunc<Act = Actions>, T: State<U>> ExponentialDiscounter<U, T> {
             phantom: std::marker::PhantomData,
         })
     }
-    pub fn new_static(state0: T, t: usize, gammas: Vec<f64>) -> Self {
-        Self::new(vec![state0; t], gammas).unwrap()
+    pub fn new_static(state0: T, t: usize, gammas: Vec<f64>) -> Result<Self, &'static str> {
+        if state0.n() != gammas.len() {
+            return Err("When creating new ExponentialDiscounter: state0.n() must match gammas.len()");
+        }
+        Ok(Self::new(vec![state0; t], gammas)?)
     }
 }
 
@@ -123,8 +129,11 @@ where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
 impl<T> InvestExponentialDiscounter<T>
 where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
 {
-    pub fn new(state0: T, gammas: Vec<f64>) -> Self {
-        InvestExponentialDiscounter { state0, gammas }
+    pub fn new(state0: T, gammas: Vec<f64>) -> Result<Self, &'static str> {
+        if gammas.len() != state0.n() {
+            return Err("When creating new InvestExponentialDiscounter: gammas must have length equal to state0.n()");
+        }
+        Ok(InvestExponentialDiscounter { state0, gammas })
     }
 
     fn get_states(&self, actions_seq: &Vec<InvestActions>) -> Vec<T> {

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray3, IntoPyArray};
 use pyo3::exceptions::PyException;
 use pyo3::{prelude::*, types::PyList};
@@ -449,7 +447,7 @@ pub struct PyInvestExpDiscounter(InvestExponentialDiscounter<InvestPayoff_>);
 impl PyInvestExpDiscounter {
     #[new]
     fn new(state0: PyInvestPayoff, gammas: Vec<f64>) -> Self {
-        PyInvestExpDiscounter(InvestExponentialDiscounter::new(state0.0, gammas))
+        PyInvestExpDiscounter(InvestExponentialDiscounter::new(state0.0, gammas).unwrap())
     }
 
     fn u_i(&self, i: usize, strategies: &PyInvestStrategies) -> f64 {
@@ -478,10 +476,8 @@ impl PyScenario {
     #[new]
     fn new(aggs: &PyList) -> Self {
         let aggs_vec = aggs.iter().map(|a|
-            Arc::new(
                 a.extract::<PyExponentialDiscounter>()
                 .expect("aggs should contain only objects of type PyExponentialDiscounter").0
-            )
         ).collect();
         PyScenario(Scenario::new(aggs_vec))
     }
@@ -508,10 +504,8 @@ impl PyInvestScenario {
     #[new]
     fn new(aggs: &PyList) -> Self {
         let aggs_vec = aggs.iter().map(|a|
-            Arc::new(
                 a.extract::<PyInvestExpDiscounter>()
                 .expect("aggs should contain only objects of type PyInvestExpDiscounter").0
-            )
         ).collect();
         PyInvestScenario(Scenario::new(aggs_vec))
     }
