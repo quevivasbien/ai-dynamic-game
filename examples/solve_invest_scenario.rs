@@ -24,11 +24,11 @@ fn main() {
 
     let agg = states::InvestExponentialDiscounter::new(
         pfunc, 
-        vec![0.9, 0.8]
+        Array::from_vec(vec![0.9, 0.8])
     ).unwrap();
 
     // solve the same problem NTHREADS times in parallel
-    let scenario = scenarios::Scenario::new(vec![agg; NTHREADS]);
+    let scenario = scenarios::Scenario::new(vec![agg; NTHREADS]).unwrap();
     let options = solve::SolverOptions::random_init(NSTEPS);
     let res = scenario.solve(&options).unwrap();
     println!("Got result:");

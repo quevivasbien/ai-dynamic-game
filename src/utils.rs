@@ -15,7 +15,7 @@ where D: Dimension
 // macro for creating vector of related structs
 #[macro_export]
 macro_rules! init_rep {
-    ($type:ident => $($field:ident: $fty:ty = $($val:expr),+);* ) => {
+    ($type:ident => $($field:ident: $fty:ty = $val:expr);* ) => {
         {
             struct ParamReps {
                 $($field: Vec<$fty>),*
@@ -44,7 +44,7 @@ macro_rules! init_rep {
             }
 
             ParamReps::new(
-                $(vec![$($val),+]),*
+                $($val),*
             ).expand()
         }
     };

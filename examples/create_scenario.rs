@@ -30,27 +30,27 @@ type InvestDiscounter_ = InvestExponentialDiscounter<InvestPayoff_>;
 fn main() {
     // set up two problems with different values of a
     let prod_funcs = init_rep!(DefaultProd => 
-        a: Array1<f64> = Array::from_vec(vec![10., 10.]), Array::from_vec(vec![100., 100.]);
-        alpha: Array1<f64> = Array::from_vec(vec![0.5, 0.5]);
-        b: Array1<f64> = Array::from_vec(vec![10., 10.]);
-        beta: Array1<f64> = Array::from_vec(vec![0.5, 0.5])
+        a: Array1<f64> = vec![Array::from_vec(vec![10., 10.]), Array::from_vec(vec![100., 100.])];
+        alpha: Array1<f64> = vec![Array::from_vec(vec![0.5, 0.5])];
+        b: Array1<f64> = vec![Array::from_vec(vec![10., 10.])];
+        beta: Array1<f64> = vec![Array::from_vec(vec![0.5, 0.5])]
     );
     let payoff_funcs = init_rep!(InvestPayoff_ =>
-        prod_func: DefaultProd = prod_funcs[0].clone(), prod_funcs[1].clone();
-        risk_func: WinnerOnlyRisk = WinnerOnlyRisk::new(2, 0.5);
-        csf: DefaultCSF = DefaultCSF;
-        reward_func: LinearReward = LinearReward::default(2);
-        disaster_cost: ConstantDisasterCost = ConstantDisasterCost::new(2, 1.);
-        cost_func: FixedInvestCost = FixedInvestCost::from_elems(2, 0.1, 0.1)
+        prod_func: DefaultProd = prod_funcs;
+        risk_func: WinnerOnlyRisk = vec![WinnerOnlyRisk::new(2, 0.5)];
+        csf: DefaultCSF = vec![DefaultCSF];
+        reward_func: LinearReward = vec![LinearReward::default(2)];
+        disaster_cost: ConstantDisasterCost = vec![ConstantDisasterCost::new(2, 1.)];
+        cost_func: FixedInvestCost = vec![FixedInvestCost::from_elems(2, 0.1, 0.1)]
     );
 
     let aggs = init_rep!(InvestDiscounter_ =>
-        payoff_func: InvestPayoff_ = payoff_funcs[0].clone(), payoff_funcs[1].clone();
-        gammas: Vec<f64> = vec![0.9, 0.8]
+        payoff_func: InvestPayoff_ = payoff_funcs;
+        gammas: Array1<f64> = vec![Array::from_vec(vec![0.9, 0.8])]
     );
 
     // solve the problems in parallel
-    let scenario = scenarios::Scenario::new(aggs);
+    let scenario = scenarios::Scenario::new(aggs).unwrap();
     let options = solve::SolverOptions::random_init(NSTEPS);
     let res = scenario.solve(&options).unwrap();
     println!("Got result:");
