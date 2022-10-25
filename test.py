@@ -4,7 +4,7 @@ import dynapai as dp
 from time import time
 
 n = 2
-t = 10
+t = 5
 
 gammas = np.linspace(0.1, 0.9, n)
 
@@ -25,29 +25,16 @@ payoffFunc = dp.PayoffFunc(
     r = np.full(n, 0.1),
 )
 
-actions = dp.Actions(
-    xs = np.full(n, 1.),
-    xp = np.full(n, 2.),
-)
-
-print("Actions:", actions)
-print("Payoff from actions:", payoffFunc.u(actions))
-
-strategies = dp.Strategies.from_actions([actions]*t)
-
-print("Strategies:", strategies, sep = '\n')
-
 agg = dp.Aggregator(
     states = [payoffFunc]*t,
     gammas = gammas
 )
 
-print("Aggregate payoff from strategies:", agg.u(strategies))
-
 solverOptions = dp.SolverOptions()
 
+print(f"Solving for {n} players and {t} time steps...")
 time0 = time()
-res = agg.solve(init_guess = strategies, options = solverOptions)
+res = agg.solve(init = None, options = solverOptions)
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
 print("Optimal strategies:", res, sep = '\n')
@@ -63,35 +50,43 @@ payoffFunc = dp.InvestPayoffFunc(
     r_inv = np.full(n, 0.01),
 )
 
-actions = dp.InvestActions(
-    xs = np.full(n, 1.),
-    xp = np.full(n, 2.),
-    inv_s = np.full(n, 10.),
-    inv_p = np.full(n, 20.),
-)
-print("Invest actions:", actions)
-
-strategies = dp.InvestStrategies.from_actions([actions]*t)
-print("Invest strategies:", strategies, sep = '\n')
-
 agg = dp.InvestAggregator(
     state0 = payoffFunc,
     gammas = gammas
 )
 
-print("Aggregate payoff from invest strategies:", agg.u(strategies))
-
+print(f"Solving for {n} players and {t} time steps, with investment...")
 time0 = time()
-res = agg.solve(init_guess = strategies, options = solverOptions)
+res = agg.solve(init = t, options = solverOptions)
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
 print("Optimal invest strategies:", res, sep = '\n')
 print("Payoff from optimal invest strategies:", agg.u(res))
 print()
 
-print("Trying [parallel] solve of scenario")
-scenario = dp.InvestScenario([agg, agg])
+
+# create two prod funcs with different values of theta
+payoff_funcs = dp.InvestPayoffFunc.expand_from(
+    prod_func_list = [prodFunc.with_invest()],
+    reward_func_list = [rewardFunc],
+    theta_list = [np.full(n, 0.5), np.full(n, 1.0)],
+    d_list = [np.full(n, 1.)],
+    r_x_list = [np.full(n, 0.1)],
+    r_inv_list = [np.full(n, 0.01)],
+)
+
+aggs = dp.InvestAggregator.expand_from(
+    state0_list = payoff_funcs,
+    gammas_list = [gammas],
+)
+
+print("Trying [parallel] solve of scenario...")
+scenario = dp.InvestScenario(aggs)
 time0 = time()
-res = scenario.solve(init_guess = strategies, options = solverOptions)
+res = scenario.solve(init = t, options = solverOptions)
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
+print("Optimal invest strategies:")
+for i, r in enumerate(res):
+    print(f'Problem {i+1}:\n{r}\n')
+

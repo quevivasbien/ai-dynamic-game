@@ -16,6 +16,15 @@ pub enum InitGuess<S: StrategyType> {
     Fixed(S),
 }
 
+impl<S: StrategyType> InitGuess<S> {
+    fn to_fixed(&self, n: usize) -> S {
+        match self {
+            InitGuess::Random(t) => S::random(*t, n, INIT_MU, INIT_SIGMA).unwrap(),
+            InitGuess::Fixed(x) => x.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SolverOptions<S: StrategyType> {
     pub init_guess: InitGuess<S>,
@@ -136,10 +145,7 @@ fn within_tol<S: StrategyType>(current: &S, last: &S, tol: f64) -> bool {
 pub fn solve<S, T>(agg: &T, options: &SolverOptions<S>) -> Result<S, argmin::core::Error>
 where S: StrategyType, T: PayoffAggregator<Strat = S>
 {
-    let mut current_strat = match options.init_guess {
-        InitGuess::Random(t) => S::random(t, agg.n(), INIT_MU, INIT_SIGMA).unwrap(),
-        InitGuess::Fixed(ref x) => x.clone(),
-    };
+    let mut current_strat = options.init_guess.to_fixed(agg.n());
     for i in 0..options.max_iters {
         let last_strat = current_strat.clone();
         update_strat(&mut current_strat, agg, &options.nm_options)?;
