@@ -56,7 +56,7 @@ impl MutatesOnAction<InvestActions> for DefaultProd {
 impl fmt::Display for DefaultProd {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
-            f, "DefaultProd: {{ a = {}, alpha = {}, b = {}, beta = {} }}",
+            f, "DefaultProd {{ a = {}, alpha = {}, b = {}, beta = {} }}",
             self.a, self.alpha, self.b, self.beta
         )
     }

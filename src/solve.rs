@@ -5,7 +5,7 @@ use rayon::prelude::*;
 
 use crate::states::PayoffAggregator;
 use crate::strategies::*;
-use crate::utils::isapprox_arr;
+use crate::utils::isapprox_iters;
 
 const INIT_MU: f64 = -1.;
 const INIT_SIGMA: f64 = 0.1;
@@ -63,7 +63,7 @@ pub struct NMOptions {
 impl Default for NMOptions {
     fn default() -> Self {
         NMOptions {
-            init_simplex_size: 1.0,
+            init_simplex_size: 0.1,
             max_iters: 200,
             tol: 1e-8,
         }
@@ -139,7 +139,11 @@ where S: StrategyType, T: PayoffAggregator<Strat = S>
 }
 
 fn within_tol<S: StrategyType>(current: &S, last: &S, tol: f64) -> bool {
-    isapprox_arr(current.data().view(), last.data().view(), tol, f64::EPSILON.sqrt())
+    isapprox_iters(
+        current.data().iter().map(|x| x.ln()),
+        last.data().iter().map(|x| x.ln()),
+        tol, f64::EPSILON.sqrt()
+    )
 }
 
 pub fn solve<S, T>(agg: &T, options: &SolverOptions<S>) -> Result<S, argmin::core::Error>

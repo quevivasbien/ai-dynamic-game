@@ -1,4 +1,4 @@
-use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray3, IntoPyArray};
+use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray3, IntoPyArray, PyArray, Ix3};
 use numpy::ndarray::{Array1};
 use pyo3::exceptions::PyException;
 use pyo3::{prelude::*, types::PyList};
@@ -95,6 +95,10 @@ impl PyStrategies {
         )
     }
 
+    fn data<'py>(&self, py: Python<'py>) -> &'py PyArray<f64, Ix3> {
+        self.0.data().to_owned().into_pyarray(py)
+    }
+
     fn __str__(&self) -> String {
         format!("{}", self.0)
     }
@@ -126,6 +130,10 @@ impl PyInvestStrategies {
                 Err(e) => panic!("{}", e),
             }
         )
+    }
+
+    fn data<'py>(&self, py: Python<'py>) -> &'py PyArray<f64, Ix3> {
+        self.0.data().to_owned().into_pyarray(py)
     }
 
     fn __str__(&self) -> String {
@@ -513,10 +521,10 @@ pub struct PySolverOptions {
 impl PySolverOptions {
     #[new]
     #[args(
-        max_iters = "100",
+        max_iters = "200",
         tol = "1e-6",
-        init_simplex_size = "1.0",
-        nm_max_iters = "100",
+        init_simplex_size = "0.1",
+        nm_max_iters = "200",
         nm_tol = "1e-8",
     )]
     fn new(

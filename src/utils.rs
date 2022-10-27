@@ -1,15 +1,13 @@
-use numpy::ndarray::{ArrayView, Dimension};
-
 pub fn isapprox(a: f64, b: f64, rtol: f64, atol: f64) -> bool
 {
     let maxval = f64::max(a.abs(), b.abs());
     (a - b).abs() <= f64::max(atol, rtol * maxval)
 }
 
-pub fn isapprox_arr<D>(a: ArrayView<f64, D>, b: ArrayView<f64, D>, rtol: f64, atol: f64) -> bool
-where D: Dimension
+pub fn isapprox_iters<I, J>(a: I, b: J, rtol: f64, atol: f64) -> bool
+where I: Iterator<Item = f64>, J: Iterator<Item = f64>
 {
-    a.iter().zip(b.iter()).all(|(a_, b_)| isapprox(*a_, *b_, rtol, atol))
+    a.zip(b).all(|(a, b)| isapprox(a, b, rtol, atol))
 }
 
 // macro for creating vector of related structs

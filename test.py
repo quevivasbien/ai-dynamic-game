@@ -41,6 +41,8 @@ print("Optimal strategies:", res, sep = '\n')
 print("Payoff from optimal strategies:", agg.u(res))
 print()
 
+dp.plot(res, title = "Optimal strategies")
+
 payoffFunc = dp.InvestPayoffFunc(
     prod_func = prodFunc.with_invest(),
     reward_func = rewardFunc,
@@ -64,6 +66,7 @@ print("Optimal invest strategies:", res, sep = '\n')
 print("Payoff from optimal invest strategies:", agg.u(res))
 print()
 
+dp.plot(res, title = "Optimal invest strategies")
 
 # create two prod funcs with different values of theta
 payoff_funcs = dp.InvestPayoffFunc.expand_from(
