@@ -118,6 +118,7 @@ impl<U: PayoffFunc<Act = Actions>, T: State<U>> PayoffAggregator for Exponential
     }
 }
 
+
 #[derive(Clone)]
 pub struct InvestExponentialDiscounter<T>
 where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
@@ -135,14 +136,6 @@ where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
         }
         Ok(InvestExponentialDiscounter { state0, gammas })
     }
-
-    fn get_states(&self, actions_seq: &Vec<InvestActions>) -> Vec<T> {
-        let mut states = vec![self.state0.clone()];
-        for actions in actions_seq {
-            states.push(states.last().unwrap().mutate_on_action(actions));
-        }
-        states
-    }
 }
 
 impl<T> PayoffAggregator for InvestExponentialDiscounter<T>
@@ -156,21 +149,31 @@ where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
 
     fn u(&self, strategies: &InvestStrategies) -> Array<f64, Ix1> {
         let actions_seq = strategies.clone().to_actions();
-        let states = self.get_states(&actions_seq);
-        actions_seq.iter().enumerate().map(|(t, actions)| {
-            Array::from_iter(self.gammas.iter().enumerate().map(|(i, gamma)| {
-                gamma.powi(t.try_into().unwrap()) * states[t].belief(i).u_i(i, actions)
-            }))
-        }).fold(Array::zeros(self.gammas.len()), |acc, x| acc + x)
+        let mut state = self.state0.clone();
+        let mut out: Array<f64, Ix1> = Array::zeros(self.gammas.len());
+        for (t, actions) in actions_seq.iter().enumerate() {
+            out.iter_mut().zip(self.gammas.iter()).enumerate().for_each(|(i, (out_i, gamma))| {
+                *out_i += gamma.powi(t.try_into().unwrap()) * state.belief(i).u_i(i, actions);
+            });
+            if t != actions_seq.len() - 1 {
+                state.mutate_on_action_inplace(actions);
+            }
+        }
+        out
     }
 
     fn u_i(&self, i: usize, strategies: &InvestStrategies) -> f64 {
         let actions_seq = strategies.clone().to_actions();
-        let states = self.get_states(&actions_seq);
-        actions_seq.iter().enumerate().map(|(t, actions)| {
+        let mut state = self.state0.clone();
+        let mut out = 0.;
+        for (t, actions) in actions_seq.iter().enumerate() {
             let gamma = self.gammas[i];
-            let belief = states[t].belief(i);
-            gamma.powi(t.try_into().unwrap()) * belief.u_i(i, actions)
-        }).sum()
+            let belief = state.belief(i);
+            out += gamma.powi(t.try_into().unwrap()) * belief.u_i(i, actions);
+            if t != actions_seq.len() - 1 {
+                state.mutate_on_action_inplace(actions);
+            }
+        }
+        out
     }
 }

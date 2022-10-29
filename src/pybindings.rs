@@ -510,22 +510,30 @@ impl PyInvestPayoff {
 
 #[pyclass(name = "SolverOptions")]
 pub struct PySolverOptions {
-    max_iters: u64,
-    tol: f64,
-    init_simplex_size: f64,
-    nm_max_iters: u64,
-    nm_tol: f64,
+    pub max_iters: u64,
+    pub tol: f64,
+    pub init_simplex_size: f64,
+    pub nm_max_iters: u64,
+    pub nm_tol: f64,
 }
+
+const DEFAULT_OPTIONS: PySolverOptions = PySolverOptions {
+    max_iters: 200,
+    tol: 1e-6,
+    init_simplex_size: 0.1,
+    nm_max_iters: 200,
+    nm_tol: 1e-8
+};
 
 #[pymethods]
 impl PySolverOptions {
     #[new]
     #[args(
-        max_iters = "200",
-        tol = "1e-6",
-        init_simplex_size = "0.1",
-        nm_max_iters = "200",
-        nm_tol = "1e-8",
+        max_iters = "DEFAULT_OPTIONS.max_iters",
+        tol = "DEFAULT_OPTIONS.tol",
+        init_simplex_size = "DEFAULT_OPTIONS.init_simplex_size",
+        nm_max_iters = "DEFAULT_OPTIONS.nm_max_iters",
+        nm_tol = "DEFAULT_OPTIONS.nm_tol",
     )]
     fn new(
         max_iters: u64,
@@ -565,11 +573,15 @@ type ExpDiscounter_ = ExponentialDiscounter<DefaultPayoff_, DefaultPayoff_>;
 #[pyclass(name = "Aggregator")]
 pub struct PyExponentialDiscounter(ExpDiscounter_);
 
-fn extract_init(init: &PyAny, n: usize) -> PyResult<InitGuess<Strategies>> {
-    match init.extract::<PyStrategies>() {
-        Ok(s) => Ok(InitGuess::Fixed(s.0)),
-        Err(_) => Ok(InitGuess::Random(n)),
+fn extract_init(init: Option<&PyAny>, n: usize) -> PyResult<InitGuess<Strategies>> {
+    match init {
+        Some(init) => match init.extract::<PyStrategies>() {
+            Ok(s) => Ok(InitGuess::Fixed(s.0)),
+            Err(_) => Err(PyException::new_err("init must be None or a Strategies object")),
+        }
+        None => Ok(InitGuess::Random(n))
     }
+    
 }
 
 #[pymethods]
@@ -621,7 +633,8 @@ impl PyExponentialDiscounter {
         self.0.u(&strategies.0).into_pyarray(py)
     }
 
-    fn solve(&self, init: &PyAny, options: &PySolverOptions) -> PyResult<PyStrategies> {
+    #[args(init = "None", options = "&DEFAULT_OPTIONS")]
+    fn solve(&self, init: Option<&PyAny>, options: &PySolverOptions) -> PyResult<PyStrategies> {
         let init_guess: InitGuess<Strategies> = extract_init(init, self.0.states.len())?;
         let solver_options = expand_options(init_guess, &options);
         let res = solve(&self.0, &solver_options);
@@ -688,6 +701,7 @@ impl PyInvestExpDiscounter {
         self.0.u(&strategies.0).into_pyarray(py)
     }
 
+    #[args(options = "&DEFAULT_OPTIONS")]
     fn solve(&self, init: &PyAny, options: &PySolverOptions) -> PyResult<PyInvestStrategies> {
         let init_guess = extract_invest_init(init)?;
         let solver_options = expand_options(init_guess, &options);
@@ -716,8 +730,9 @@ impl PyScenario {
         }
     }
 
-    fn solve<'py>(&self, py: Python<'py>, init: &PyAny, options: &PySolverOptions) -> PyResult<&'py PyList> {
-        let init_guess: InitGuess<Strategies> = extract_init(init, self.0.aggs()[0].states.len())?;
+    #[args(init = "None", options = "&DEFAULT_OPTIONS")]
+    fn solve<'py>(&self, py: Python<'py>, init: Option<&PyAny>, options: &PySolverOptions) -> PyResult<&'py PyList> {
+        let init_guess = extract_init(init, self.0.aggs()[0].states.len())?;
         let solver_options = expand_options(init_guess, &options);
         match self.0.solve(&solver_options) {
             Ok(res) => {
@@ -748,6 +763,7 @@ impl PyInvestScenario {
         }
     }
 
+    #[args(options = "&DEFAULT_OPTIONS")]
     fn solve<'py>(&self, py: Python<'py>, init: &PyAny, options: &PySolverOptions) -> PyResult<&'py PyList> {
         let init_guess = extract_invest_init(init)?;
         let solver_options = expand_options(init_guess, &options);

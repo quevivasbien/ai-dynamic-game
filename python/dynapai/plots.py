@@ -13,7 +13,6 @@ def plot(strategies, title = None, labels = None, figsize = None, show = True):
     for j in range(n_axs):
         ax_idx = j if axs.ndim == 1 else (j // 2, j % 2)
         for i in range(data.shape[1]):
-            ax_idx = j if axs.ndim == 1 else (j // 2, j % 2)
             axs[ax_idx].plot(data[:, i, j], label = labels[i])
         axs[ax_idx].set_xlabel("t")
         axs[ax_idx].set_ylabel(ylabels[j])

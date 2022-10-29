@@ -125,11 +125,11 @@ pub trait MutatesOnAction<A: ActionType>: Clone + Sized {
 
     #[allow(unused_mut)]
     #[allow(unused_variables)]
-    fn mutate_on_action_inplace(mut self, actions: &A) -> Self {
-        self
-    }
+    fn mutate_on_action_inplace(&mut self, actions: &A) {}
     fn mutate_on_action(&self, actions: &A) -> Self {
-        self.clone().mutate_on_action_inplace(actions)
+        let mut new_state = self.clone();
+        new_state.mutate_on_action_inplace(actions);
+        new_state
     }
 }
 

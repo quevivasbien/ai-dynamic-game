@@ -47,9 +47,13 @@ impl<A: ActionType> ProdFunc<A> for DefaultProd {
 }
 
 impl MutatesOnAction<InvestActions> for DefaultProd {
-    fn mutate_on_action_inplace(mut self, actions: &InvestActions) -> Self { self.a = self.a + actions.inv_s();
-        self.b = self.b + actions.inv_p();
-        self
+    fn mutate_on_action_inplace(&mut self, actions: &InvestActions) {
+        self.a.iter_mut().zip(actions.inv_s().iter()).for_each(
+            |(a, inv_s)| *a += inv_s
+        );
+        self.b.iter_mut().zip(actions.inv_p().iter()).for_each(
+            |(b, inv_p)| *b += inv_p
+        );
     }
 }
 

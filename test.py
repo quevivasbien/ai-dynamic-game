@@ -30,11 +30,9 @@ agg = dp.Aggregator(
     gammas = gammas
 )
 
-solverOptions = dp.SolverOptions()
-
 print(f"Solving for {n} players and {t} time steps...")
 time0 = time()
-res = agg.solve(init = None, options = solverOptions)
+res = agg.solve()
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
 print("Optimal strategies:", res, sep = '\n')
@@ -59,7 +57,7 @@ agg = dp.InvestAggregator(
 
 print(f"Solving for {n} players and {t} time steps, with investment...")
 time0 = time()
-res = agg.solve(init = t, options = solverOptions)
+res = agg.solve(t)
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
 print("Optimal invest strategies:", res, sep = '\n')
@@ -86,7 +84,7 @@ aggs = dp.InvestAggregator.expand_from(
 print("Trying [parallel] solve of scenario...")
 scenario = dp.InvestScenario(aggs)
 time0 = time()
-res = scenario.solve(init = t, options = solverOptions)
+res = scenario.solve(t)
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
 print("Optimal invest strategies:")

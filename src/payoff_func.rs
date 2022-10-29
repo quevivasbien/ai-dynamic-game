@@ -141,8 +141,7 @@ where A: ActionType,
       X: DisasterCost,
       Y: CostFunc<A>,
 {
-    fn mutate_on_action_inplace(mut self, action: &A) -> Self {
-        self.prod_func = self.prod_func.mutate_on_action_inplace(action);
-        self
+    fn mutate_on_action_inplace(&mut self, action: &A) {
+        self.prod_func.mutate_on_action_inplace(action);
     }
 }
