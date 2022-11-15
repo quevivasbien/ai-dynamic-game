@@ -22,7 +22,7 @@ fn main() {
         cost_func::FixedInvestCost::from_elems(2, 0.1, 0.1),
     ).unwrap();
 
-    let agg = states::InvestExponentialDiscounter::new(
+    let agg = states::InvestExpDiscounter::new(
         pfunc, 
         Array::from_vec(vec![0.9, 0.8])
     ).unwrap();

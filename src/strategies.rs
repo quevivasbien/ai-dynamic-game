@@ -123,9 +123,7 @@ impl fmt::Display for InvestActions {
 
 pub trait MutatesOnAction<A: ActionType>: Clone + Sized {
 
-    #[allow(unused_mut)]
-    #[allow(unused_variables)]
-    fn mutate_on_action_inplace(&mut self, actions: &A) {}
+    fn mutate_on_action_inplace(&mut self, _actions: &A) {}
     fn mutate_on_action(&self, actions: &A) -> Self {
         let mut new_state = self.clone();
         new_state.mutate_on_action_inplace(actions);

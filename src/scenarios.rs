@@ -1,14 +1,22 @@
+use std::marker::PhantomData;
+
 use rayon::prelude::*;
 
+use crate::strategies::{ActionType, StrategyType};
 use crate::states::PayoffAggregator;
 use crate::solve::{solve, SolverOptions};
 
-pub struct Scenario<T: PayoffAggregator> {
+pub struct Scenario<A, S, T>
+where A: ActionType, S: StrategyType<Act = A>, T: PayoffAggregator<A, S>
+{
     n: usize,
-    aggs: Vec<T>
+    aggs: Vec<T>,
+    _phantoms: PhantomData<(A, S)>
 }
 
-impl<T: PayoffAggregator> Scenario<T> {
+impl<A, S, T> Scenario<A, S, T>
+where A: ActionType, S: StrategyType<Act = A>, T: PayoffAggregator<A, S>
+{
 
     pub fn new(aggs: Vec<T>) -> Result<Self, &'static str> {
         let n = aggs[0].n();
@@ -17,7 +25,8 @@ impl<T: PayoffAggregator> Scenario<T> {
         }
         Ok(Scenario {
             n,
-            aggs
+            aggs,
+            _phantoms: PhantomData
         })
     }
 
@@ -29,7 +38,7 @@ impl<T: PayoffAggregator> Scenario<T> {
         self.n
     }
 
-    pub fn solve(&self, options: &SolverOptions<T::Strat>) -> Result<Vec<T::Strat>, argmin::core::Error> {
+    pub fn solve(&self, options: &SolverOptions<S>) -> Result<Vec<S>, argmin::core::Error> {
         self.aggs.par_iter().map(|agg| solve(agg, options)).collect()
     }
 }

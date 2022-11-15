@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use numpy::ndarray::{Array, Ix1};
 
 use crate::strategies::*;
@@ -45,135 +47,158 @@ impl<T: PayoffFunc> HetBeliefs<T> {
     }
 }
 
-pub trait PayoffAggregator: Send + Sync {
-    type Strat: StrategyType;
+
+pub trait StateIterator<A, S>: Send + Sync
+where A: ActionType, S: StrategyType<Act = A>
+{
+    type PFunc: PayoffFunc<Act = A>;
+    type StateType: State<Self::PFunc>;
+    fn state0(&self) -> &Self::StateType;
+    fn advance_state(&self, _state: &mut Self::StateType, _actions: &A) {}
+}
+
+pub trait PayoffAggregator<A, S>: Send + Sync
+where A: ActionType, S: StrategyType<Act = A>
+{
     fn n(&self) -> usize;
-    fn u_i(&self, i: usize, strategies: &Self::Strat) -> f64;
-    fn u(&self, strategies: &Self::Strat) -> Array<f64, Ix1> {
+    fn u_i(&self, i: usize, strategies: &S) -> f64;
+    fn u(&self, strategies: &S) -> Array<f64, Ix1> {
         Array::from_iter((0..strategies.n()).map(|i| self.u_i(i, strategies)))
     }
 }
 
-#[derive(Clone)]
-pub struct ExponentialDiscounter<U: PayoffFunc<Act = Actions>, T: State<U>> {
-    n: usize,
-    pub states: Vec<T>,
-    pub gammas: Array<f64, Ix1>,
-    phantom: std::marker::PhantomData<U>,
+pub trait Discounter {
+    fn gammas(&self) -> &Array<f64, Ix1>;
 }
 
-impl<U: PayoffFunc<Act = Actions>, T: State<U>> ExponentialDiscounter<U, T> {
-    pub fn new(states: Vec<T>, gammas: Array<f64, Ix1>) -> Result<Self, &'static str> {
-        if states.len() == 0 {
-            return Err("When creating new ExponentialDiscounter: states must have length > 0");
-        }
-        let n = states[0].n();
-        if states.iter().any(|s| s.n() != n){
-            return Err("When creating new ExponentialDiscounter: All states must have the same n");
-        }
-        if n != gammas.len() {
-            return Err("When creating new ExponentialDiscounter: gammas must have length == n");
-        }
-        Ok(ExponentialDiscounter {
-            n,
-            states,
-            gammas,
-            phantom: std::marker::PhantomData,
-        })
-    }
-    pub fn new_static(state0: T, t: usize, gammas: Array<f64, Ix1>) -> Result<Self, &'static str> {
-        if state0.n() != gammas.len() {
-            return Err("When creating new ExponentialDiscounter: state0.n() must match gammas.len()");
-        }
-        Ok(Self::new(vec![state0; t], gammas)?)
-    }
-}
-
-impl<U: PayoffFunc<Act = Actions>, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T> {
-    type Strat = Strategies;
-
+impl<A, S, T> PayoffAggregator<A, S> for T
+where A: ActionType, S: StrategyType<Act = A>, T: StateIterator<A, S> + Discounter
+{
     fn n(&self) -> usize {
-        self.n
+        self.state0().n()
     }
-
-    fn u(&self, strategies: &Strategies) -> Array<f64, Ix1> {
-        assert_eq!(self.states.len(), strategies.t(), "Number of states should match number of time periods in strategies");
+    fn u_i(&self, i: usize, strategies: &S) -> f64 {
         let actions_seq = strategies.clone().to_actions();
-        actions_seq.iter().enumerate().map(|(t, actions)| {
-            let states = &self.states[t];
-            Array::from_iter(self.gammas.iter().enumerate().map(|(i, gamma)| {
-                gamma.powi(t.try_into().unwrap()) * states.belief(i).u_i(i, actions)
-            }))
-        }).fold(Array::zeros(self.gammas.len()), |acc, x| acc + x)
-    }
-
-    fn u_i(&self, i: usize, strategies: &Strategies) -> f64 {
-        assert_eq!(self.states.len(), strategies.t(), "Number of states should match number of time periods in strategies");
-        let actions_seq = strategies.clone().to_actions();
-        actions_seq.iter().enumerate().map(|(t, actions)| {
-            let gamma = self.gammas[i];
-            let belief = self.states[t].belief(i);
-            gamma.powi(t.try_into().unwrap()) * belief.u_i(i, actions)
-        }).sum()
-    }
-}
-
-
-#[derive(Clone)]
-pub struct InvestExponentialDiscounter<T>
-where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
-{
-    pub state0: T,
-    pub gammas: Array<f64, Ix1>,
-}
-
-impl<T> InvestExponentialDiscounter<T>
-where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
-{
-    pub fn new(state0: T, gammas: Array<f64, Ix1>) -> Result<Self, &'static str> {
-        if gammas.len() != state0.n() {
-            return Err("When creating new InvestExponentialDiscounter: gammas must have length equal to state0.n()");
-        }
-        Ok(InvestExponentialDiscounter { state0, gammas })
-    }
-}
-
-impl<T> PayoffAggregator for InvestExponentialDiscounter<T>
-where T: PayoffFunc<Act = InvestActions> + MutatesOnAction<InvestActions>
-{
-    type Strat = InvestStrategies;
-
-    fn n(&self) -> usize {
-        self.state0.n()
-    }
-
-    fn u(&self, strategies: &InvestStrategies) -> Array<f64, Ix1> {
-        let actions_seq = strategies.clone().to_actions();
-        let mut state = self.state0.clone();
-        let mut out: Array<f64, Ix1> = Array::zeros(self.gammas.len());
+        let state = &mut self.state0().clone();
+        let gammas = self.gammas();
+        let mut u = 0.0;
         for (t, actions) in actions_seq.iter().enumerate() {
-            out.iter_mut().zip(self.gammas.iter()).enumerate().for_each(|(i, (out_i, gamma))| {
-                *out_i += gamma.powi(t.try_into().unwrap()) * state.belief(i).u_i(i, actions);
+            u += gammas[i].powi(t.try_into().unwrap()) * state.belief(i).u_i(i, actions);
+            if t != actions_seq.len() - 1 {
+                self.advance_state(state, actions);
+            }
+        }
+        u
+    }
+    fn u(&self, strategies: &S) -> Array<f64, Ix1> {
+        let actions_seq = strategies.clone().to_actions();
+        let state = &mut self.state0().clone();
+        let gammas = self.gammas();
+        let mut u: Array<f64, Ix1> = Array::zeros(gammas.len());
+        for (t, actions) in actions_seq.iter().enumerate() {
+            u.iter_mut().zip(gammas.iter()).enumerate().for_each(|(i, (u_i, gamma))| {
+                *u_i += gamma.powi(t.try_into().unwrap()) * state.belief(i).u_i(i, actions);
             });
             if t != actions_seq.len() - 1 {
-                state.mutate_on_action_inplace(actions);
+                self.advance_state(state, actions);
             }
         }
-        out
-    }
-
-    fn u_i(&self, i: usize, strategies: &InvestStrategies) -> f64 {
-        let actions_seq = strategies.clone().to_actions();
-        let mut state = self.state0.clone();
-        let mut out = 0.;
-        for (t, actions) in actions_seq.iter().enumerate() {
-            let gamma = self.gammas[i];
-            let belief = state.belief(i);
-            out += gamma.powi(t.try_into().unwrap()) * belief.u_i(i, actions);
-            if t != actions_seq.len() - 1 {
-                state.mutate_on_action_inplace(actions);
-            }
-        }
-        out
+        u
     }
 }
+
+#[derive(Clone)]
+pub struct FixedStateDiscounter<A, S, P, T>
+where A: ActionType, S: StrategyType<Act = A>, P: PayoffFunc<Act = A>, T: State<P>
+{
+    state: T,
+    gammas: Array<f64, Ix1>,
+    _phantoms: PhantomData<(A, S, P)>,
+}
+
+impl<A, S, P, T> FixedStateDiscounter<A, S, P, T>
+where A: ActionType, S: StrategyType<Act = A>, P: PayoffFunc<Act = A>, T: State<P>
+{
+    pub fn new(state: T, gammas: Array<f64, Ix1>) -> Result<Self, &'static str> {
+        if state.n() != gammas.len() {
+            return Err("When creating new FixedStateDiscounter: gammas must have length == n");
+        }
+        Ok(FixedStateDiscounter { state, gammas, _phantoms: PhantomData })
+    }
+}
+
+impl<A, S, P, T> StateIterator<A, S> for FixedStateDiscounter<A, S, P, T>
+where A: ActionType, S: StrategyType<Act = A>, P: PayoffFunc<Act = A>, T: State<P>
+{
+    type PFunc = P;
+    type StateType = T;
+    fn state0(&self) -> &T {
+        &self.state
+    }
+}
+
+impl<A, S, P, T> Discounter for FixedStateDiscounter<A, S, P, T>
+where A: ActionType, S: StrategyType<Act = A>, P: PayoffFunc<Act = A>, T: State<P>
+{
+    fn gammas(&self) -> &Array<f64, Ix1> {
+        &self.gammas
+    }
+}
+
+pub type ExponentialDiscounter<P, T> = FixedStateDiscounter<Actions, Strategies, P, T>;
+
+#[derive(Clone)]
+pub struct DynStateDiscounter<A, S, P, T>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      P: PayoffFunc<Act = A>, T: State<P>,
+      T: State<P> + MutatesOnAction<A>,
+{
+    state0: T,
+    gammas: Array<f64, Ix1>,
+    _phantoms: PhantomData<(A, S, P)>,
+}
+
+impl<A, S, P, T> DynStateDiscounter<A, S, P, T>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      P: PayoffFunc<Act = A>, T: State<P>,
+      T: State<P> + MutatesOnAction<A>,
+{
+    pub fn new(state0: T, gammas: Array<f64, Ix1>) -> Result<Self, &'static str> {
+        if state0.n() != gammas.len() {
+            return Err("When creating new DynStateDiscounter: gammas must have length == n");
+        }
+        Ok(DynStateDiscounter { state0, gammas, _phantoms: PhantomData })
+    }
+}
+
+impl<A, S, P, T> StateIterator<A, S> for DynStateDiscounter<A, S, P, T>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      P: PayoffFunc<Act = A>,
+      T: State<P> + MutatesOnAction<A>
+{
+    type PFunc = P;
+    type StateType = T;
+    fn state0(&self) -> &T {
+        &self.state0
+    }
+
+    fn advance_state(&self, state: &mut T, actions: &A) {
+        state.mutate_on_action_inplace(actions);
+    }
+}
+
+impl<A, S, P, T> Discounter for DynStateDiscounter<A, S, P, T>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      P: PayoffFunc<Act = A>,
+      T: State<P> + MutatesOnAction<A>
+{
+    fn gammas(&self) -> &Array<f64, Ix1> {
+        &self.gammas
+    }
+}
+
+pub type InvestExpDiscounter<P> = DynStateDiscounter<InvestActions, InvestStrategies, P, P>;

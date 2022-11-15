@@ -70,7 +70,7 @@ impl Default for NMOptions {
     }
 }
 
-struct PlayerObjective<'a, S: StrategyType, T: PayoffAggregator<Strat = S>>{
+struct PlayerObjective<'a, A: ActionType, S: StrategyType<Act = A>, T: PayoffAggregator<A, S>>{
     pub payoff_aggregator: &'a T,
     pub i: usize,
     pub base_strategies: &'a S,
@@ -78,7 +78,7 @@ struct PlayerObjective<'a, S: StrategyType, T: PayoffAggregator<Strat = S>>{
 
 // implement traits needed for argmin
 
-impl<S: StrategyType, T: PayoffAggregator<Strat = S>> CostFunction for PlayerObjective<'_, S, T> {
+impl<A: ActionType, S: StrategyType<Act = A>, T: PayoffAggregator<A, S>> CostFunction for PlayerObjective<'_, A, S, T> {
     type Param = Vec<f64>;
     type Output = f64;
 
@@ -106,7 +106,9 @@ fn create_simplex(init_guess: ArrayView<f64, Ix2>, init_simplex_size: f64) -> Ve
     simplex
 }
 
-fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat: &S, agg: &T, options: &NMOptions) -> Result<Array<f64, Ix2>, argmin::core::Error> {
+fn solve_for_i<A, S, T>(i: usize, strat: &S, agg: &T, options: &NMOptions) -> Result<Array<f64, Ix2>, argmin::core::Error>
+where A: ActionType, S: StrategyType<Act = A>, T: PayoffAggregator<A, S>
+{
     let init_simplex = create_simplex(
         strat.data().slice(s![.., i, ..]),
         options.init_simplex_size
@@ -126,8 +128,8 @@ fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat:
     )?)
 }
 
-fn update_strat<S, T>(strat: &mut S, agg: &T, nm_options: &NMOptions) -> Result<(), argmin::core::Error>
-where S: StrategyType, T: PayoffAggregator<Strat = S>
+fn update_strat<A, S, T>(strat: &mut S, agg: &T, nm_options: &NMOptions) -> Result<(), argmin::core::Error>
+where A: ActionType, S: StrategyType<Act = A>, T: PayoffAggregator<A, S>
 {
     let new_data = (0..strat.n()).into_par_iter().map(|i| {
         solve_for_i(i, strat, agg, nm_options)
@@ -146,8 +148,8 @@ fn within_tol<S: StrategyType>(current: &S, last: &S, tol: f64) -> bool {
     )
 }
 
-pub fn solve<S, T>(agg: &T, options: &SolverOptions<S>) -> Result<S, argmin::core::Error>
-where S: StrategyType, T: PayoffAggregator<Strat = S>
+pub fn solve<A, S, T>(agg: &T, options: &SolverOptions<S>) -> Result<S, argmin::core::Error>
+where A: ActionType, S: StrategyType<Act = A>, T: PayoffAggregator<A, S>
 {
     let mut current_strat = options.init_guess.to_fixed(agg.n());
     for i in 0..options.max_iters {

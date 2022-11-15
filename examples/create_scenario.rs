@@ -11,7 +11,7 @@ use dynapai::csf::DefaultCSF;
 use dynapai::reward_func::LinearReward;
 use dynapai::disaster_cost::ConstantDisasterCost;
 use dynapai::cost_func::FixedInvestCost;
-use dynapai::states::InvestExponentialDiscounter;
+use dynapai::states::InvestExpDiscounter;
 
 const NSTEPS: usize = 10;
 
@@ -25,7 +25,7 @@ type InvestPayoff_ = DefaultPayoff<
     FixedInvestCost
 >;
 
-type InvestDiscounter_ = InvestExponentialDiscounter<InvestPayoff_>;
+type InvestDiscounter_ = InvestExpDiscounter<InvestPayoff_>;
 
 fn main() {
     // set up two problems with different values of a

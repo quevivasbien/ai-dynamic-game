@@ -12,16 +12,28 @@ use crate::reward_func::LinearReward;
 use crate::risk_func::WinnerOnlyRisk;
 use crate::scenarios::Scenario;
 use crate::solve::{InitGuess, NMOptions, SolverOptions, solve};
-use crate::states::{PayoffAggregator, ExponentialDiscounter, InvestExponentialDiscounter};
+use crate::states::{PayoffAggregator, ExponentialDiscounter, InvestExpDiscounter};
 use crate::strategies::*;
 use crate::init_rep;
 
+
+trait PyContainer {
+    type Item;
+    fn get(&self) -> &Self::Item;
+}
 
 // implement python class containers for Actions and Strategies
 
 #[derive(Clone)]
 #[pyclass(name = "Actions")]
 pub struct PyActions(Actions);
+
+impl PyContainer for PyActions {
+    type Item = Actions;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
 
 #[pymethods]
 impl PyActions {
@@ -43,6 +55,13 @@ impl PyActions {
 #[derive(Clone)]
 #[pyclass(name = "InvestActions")]
 pub struct PyInvestActions(InvestActions);
+
+impl PyContainer for PyInvestActions {
+    type Item = InvestActions;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
 
 #[pymethods]
 impl PyInvestActions {
@@ -70,6 +89,13 @@ impl PyInvestActions {
 #[derive(Clone)]
 #[pyclass(name = "Strategies")]
 pub struct PyStrategies(Strategies);
+
+impl PyContainer for PyStrategies {
+    type Item = Strategies;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
 
 #[pymethods]
 impl PyStrategies {
@@ -107,6 +133,13 @@ impl PyStrategies {
 #[derive(Clone)]
 #[pyclass(name = "InvestStrategies")]
 pub struct PyInvestStrategies(InvestStrategies);
+
+impl PyContainer for PyInvestStrategies {
+    type Item = InvestStrategies;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
 
 #[pymethods]
 impl PyInvestStrategies {
@@ -146,6 +179,13 @@ impl PyInvestStrategies {
 #[derive(Clone)]
 pub struct PyDefaultProd(DefaultProd);
 
+impl PyContainer for PyDefaultProd {
+    type Item = DefaultProd;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
+
 #[pymethods]
 impl PyDefaultProd {
     #[new]
@@ -164,20 +204,20 @@ impl PyDefaultProd {
     #[staticmethod]
     fn expand_from<'py>(
         py: Python<'py>,
-        a: &PyList, alpha: &PyList,
-        b: &PyList, beta: &PyList,
+        a: Vec<PyReadonlyArray1<f64>>, alpha: Vec<PyReadonlyArray1<f64>>,
+        b: Vec<PyReadonlyArray1<f64>>, beta: Vec<PyReadonlyArray1<f64>>,
     ) -> &'py PyList {
-        let a_vec = a.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let a_vec = a.into_iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
-        let alpha_vec = alpha.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let alpha_vec = alpha.into_iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
-        let b_vec = b.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let b_vec = b.into_iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
-        let beta_vec = beta.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let beta_vec = beta.into_iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
         let prod_funcs = init_rep!(DefaultProd =>
             a: Array1<f64> = a_vec;
@@ -218,6 +258,13 @@ impl PyDefaultProd {
 #[derive(Clone)]
 pub struct PyInvestProd(DefaultProd);
 
+impl PyContainer for PyInvestProd {
+    type Item = DefaultProd;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
+
 #[pymethods]
 impl PyInvestProd {
     #[new]
@@ -236,20 +283,20 @@ impl PyInvestProd {
     #[staticmethod]
     fn expand_from<'py>(
         py: Python<'py>,
-        a: &PyList, alpha: &PyList,
-        b: &PyList, beta: &PyList,
+        a: Vec<PyReadonlyArray1<f64>>, alpha: Vec<PyReadonlyArray1<f64>>,
+        b: Vec<PyReadonlyArray1<f64>>, beta: Vec<PyReadonlyArray1<f64>>,
     ) -> &'py PyList {
-        let a_vec = a.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let a_vec = a.iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
-        let alpha_vec = alpha.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let alpha_vec = alpha.iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
-        let b_vec = b.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let b_vec = b.iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
-        let beta_vec = beta.iter().map(|a|
-            a.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
+        let beta_vec = beta.iter().map(|x|
+            x.as_array().to_owned()
         ).collect();
         let prod_funcs = init_rep!(DefaultProd =>
             a: Array1<f64> = a_vec;
@@ -282,6 +329,13 @@ impl PyInvestProd {
 #[pyclass(name = "LinearReward")]
 #[derive(Clone)]
 pub struct PyLinearReward(LinearReward);
+
+impl PyContainer for PyLinearReward {
+    type Item = LinearReward;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
 
 #[pymethods]
 impl PyLinearReward {
@@ -319,6 +373,13 @@ type DefaultPayoff_ = DefaultPayoff<
 #[pyclass(name = "PayoffFunc")]
 pub struct PyDefaultPayoff(DefaultPayoff_);
 
+impl PyContainer for PyDefaultPayoff {
+    type Item = DefaultPayoff_;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
+
 #[pymethods]
 impl PyDefaultPayoff {
     #[new]
@@ -342,26 +403,22 @@ impl PyDefaultPayoff {
     #[staticmethod]
     pub fn expand_from<'py>(
         py: Python<'py>,
-        prod_func_list: &PyList,
-        reward_func_list: &PyList,
-        theta_list: &PyList,
-        d_list: &PyList,
-        r_list: &PyList,
+        prod_func_list: Vec<PyDefaultProd>,
+        reward_func_list: Vec<PyLinearReward>,
+        theta_list: Vec<PyReadonlyArray1<f64>>,
+        d_list: Vec<PyReadonlyArray1<f64>>,
+        r_list: Vec<PyReadonlyArray1<f64>>,
     ) -> &'py PyList {
-        let prod_funcs = prod_func_list.iter().map(|x|
-            x.extract::<PyDefaultProd>().unwrap().0
+        let prod_funcs = prod_func_list.into_iter().map(|x| x.0).collect::<Vec<_>>();
+        let reward_funcs = reward_func_list.into_iter().map(|x| x.0).collect::<Vec<_>>();
+        let risk_funcs = theta_list.into_iter().map(|x|
+            WinnerOnlyRisk { theta: x.as_array().to_owned() }
         ).collect::<Vec<_>>();
-        let reward_funcs = reward_func_list.iter().map(|x|
-            x.extract::<PyLinearReward>().unwrap().0
+        let disaster_costs = d_list.into_iter().map(|x|
+            ConstantDisasterCost { d: x.as_array().to_owned() }
         ).collect::<Vec<_>>();
-        let risk_funcs = theta_list.iter().map(|x|
-            WinnerOnlyRisk { theta: x.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned() }
-        ).collect::<Vec<_>>();
-        let disaster_costs = d_list.iter().map(|x|
-            ConstantDisasterCost { d: x.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned() }
-        ).collect::<Vec<_>>();
-        let cost_funcs = r_list.iter().map(|r| {
-            FixedUnitCost { r: r.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned() }
+        let cost_funcs = r_list.into_iter().map(|x| {
+            FixedUnitCost { r: x.as_array().to_owned() }
         }).collect::<Vec<_>>();
 
         let payoff_funcs = init_rep!(DefaultPayoff_ =>
@@ -415,6 +472,13 @@ type InvestPayoff_ = DefaultPayoff<
 #[pyclass(name = "InvestPayoffFunc")]
 pub struct PyInvestPayoff(InvestPayoff_);
 
+impl PyContainer for PyInvestPayoff {
+    type Item = InvestPayoff_;
+    fn get(&self) -> &Self::Item {
+        &self.0
+    }
+}
+
 #[pymethods]
 impl PyInvestPayoff {
     #[new]
@@ -442,29 +506,29 @@ impl PyInvestPayoff {
     #[staticmethod]
     pub fn expand_from<'py>(
         py: Python<'py>,
-        prod_func_list: &PyList,
-        reward_func_list: &PyList,
-        theta_list: &PyList,
-        d_list: &PyList,
-        r_x_list: &PyList,
-        r_inv_list: &PyList,
+        prod_func_list: Vec<PyInvestProd>,
+        reward_func_list: Vec<PyLinearReward>,
+        theta_list: Vec<PyReadonlyArray1<f64>>,
+        d_list: Vec<PyReadonlyArray1<f64>>,
+        r_x_list: Vec<PyReadonlyArray1<f64>>,
+        r_inv_list: Vec<PyReadonlyArray1<f64>>,
     ) -> &'py PyList {
-        let prod_funcs = prod_func_list.iter().map(|x|
-            x.extract::<PyInvestProd>().unwrap().0
+        let prod_funcs = prod_func_list.into_iter().map(|x|
+            x.0
         ).collect::<Vec<_>>();
-        let reward_funcs = reward_func_list.iter().map(|x|
-            x.extract::<PyLinearReward>().unwrap().0
+        let reward_funcs = reward_func_list.into_iter().map(|x|
+            x.0
         ).collect::<Vec<_>>();
-        let risk_funcs = theta_list.iter().map(|x|
-            WinnerOnlyRisk { theta: x.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned() }
+        let risk_funcs = theta_list.into_iter().map(|x|
+            WinnerOnlyRisk { theta: x.as_array().to_owned() }
         ).collect::<Vec<_>>();
-        let disaster_costs = d_list.iter().map(|x|
-            ConstantDisasterCost { d: x.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned() }
+        let disaster_costs = d_list.into_iter().map(|x|
+            ConstantDisasterCost { d: x.as_array().to_owned() }
         ).collect::<Vec<_>>();
-        let cost_funcs = r_x_list.iter().zip(r_inv_list.iter()).map(|(r_x, r_inv)| {
+        let cost_funcs = r_x_list.into_iter().zip(r_inv_list.into_iter()).map(|(r_x, r_inv)| {
             FixedInvestCost::new(
-                r_x.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned(),
-                r_inv.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned(),
+                r_x.as_array().to_owned(),
+                r_inv.as_array().to_owned(),
             )
         }).collect::<Vec<_>>();
 
@@ -573,27 +637,32 @@ type ExpDiscounter_ = ExponentialDiscounter<DefaultPayoff_, DefaultPayoff_>;
 #[pyclass(name = "Aggregator")]
 pub struct PyExponentialDiscounter(ExpDiscounter_);
 
-fn extract_init(init: Option<&PyAny>, n: usize) -> PyResult<InitGuess<Strategies>> {
-    match init {
-        Some(init) => match init.extract::<PyStrategies>() {
-            Ok(s) => Ok(InitGuess::Fixed(s.0)),
-            Err(_) => Err(PyException::new_err("init must be None or a Strategies object")),
-        }
-        None => Ok(InitGuess::Random(n))
+impl PyContainer for PyExponentialDiscounter {
+    type Item = ExpDiscounter_;
+    fn get(&self) -> &Self::Item {
+        &self.0
     }
-    
 }
+
+fn extract_init<'a, S, P>(init: &'a PyAny) -> PyResult<InitGuess<S>>
+where S: StrategyType, P: PyContainer<Item = S> + FromPyObject<'a>
+{
+    match init.extract::<P>() {
+        Ok(s) => Ok(InitGuess::Fixed(s.get().clone())),
+        Err(_) => match init.extract::<usize>() {
+            Ok(n) => Ok(InitGuess::Random(n)),
+            Err(_) => Err(PyException::new_err("init must be either a strategy object or a positive integer"))
+        }
+    }
+}
+
 
 #[pymethods]
 impl PyExponentialDiscounter {
     #[new]
-    fn new(states: &PyList, gammas: PyReadonlyArray1<f64>) -> Self {
-        let states_vec = states.iter().map(|s|
-            s.extract::<PyDefaultPayoff>()
-             .expect("states should contain only objects of type PyDefaultPayoff").0
-        ).collect();
+    fn new(state: PyDefaultPayoff, gammas: PyReadonlyArray1<f64>) -> Self {
         PyExponentialDiscounter(
-            match ExponentialDiscounter::new(states_vec, gammas.as_array().to_owned()) {
+            match ExponentialDiscounter::new(state.0, gammas.as_array().to_owned()) {
                 Ok(discounter) => discounter,
                 Err(e) => panic!("Error when constructing aggregator: {}", e),
             }
@@ -603,18 +672,13 @@ impl PyExponentialDiscounter {
     #[staticmethod]
     fn expand_from<'py>(
         py: Python<'py>,
-        states_list: &PyList,
-        gammas_list: &PyList,
+        states_list: Vec<PyDefaultPayoff>,
+        gammas_list: Vec<PyReadonlyArray1<f64>>,
     ) -> &'py PyList {
-        let states_vec_vec = states_list.iter().map(|s|
-            s.extract::<Vec<PyDefaultPayoff>>()
-             .unwrap().into_iter().map(|x| x.0).collect()
-        ).collect::<Vec<Vec<_>>>();
-        let gammas_vec = gammas_list.iter().map(|g|
-            g.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
-        ).collect::<Vec<_>>();
+        let states_vec = states_list.into_iter().map(|x| x.0).collect::<Vec<_>>();
+        let gammas_vec = gammas_list.into_iter().map(|x| x.as_array().to_owned()).collect::<Vec<_>>();
         let aggs = init_rep!(ExpDiscounter_ =>
-            states: Vec<DefaultPayoff_> = states_vec_vec;
+            state: DefaultPayoff_ = states_vec;
             gammas: Array1<f64> = gammas_vec
         );
         PyList::new(
@@ -633,9 +697,9 @@ impl PyExponentialDiscounter {
         self.0.u(&strategies.0).into_pyarray(py)
     }
 
-    #[args(init = "None", options = "&DEFAULT_OPTIONS")]
-    fn solve(&self, init: Option<&PyAny>, options: &PySolverOptions) -> PyResult<PyStrategies> {
-        let init_guess: InitGuess<Strategies> = extract_init(init, self.0.states.len())?;
+    #[args(options = "&DEFAULT_OPTIONS")]
+    fn solve(&self, init: &PyAny, options: &PySolverOptions) -> PyResult<PyStrategies> {
+        let init_guess: InitGuess<Strategies> = extract_init::<_, PyStrategies>(init)?;
         let solver_options = expand_options(init_guess, &options);
         let res = solve(&self.0, &solver_options);
         match res {
@@ -645,19 +709,16 @@ impl PyExponentialDiscounter {
     }
 }
 
-type InvestExpDiscounter_ = InvestExponentialDiscounter<InvestPayoff_>;
+type InvestExpDiscounter_ = InvestExpDiscounter<InvestPayoff_>;
 
 #[derive(Clone)]
 #[pyclass(name = "InvestAggregator")]
 pub struct PyInvestExpDiscounter(InvestExpDiscounter_);
 
-fn extract_invest_init(init: &PyAny) -> PyResult<InitGuess<InvestStrategies>> {
-    match init.extract::<PyInvestStrategies>() {
-        Ok(s) => Ok(InitGuess::Fixed(s.0)),
-        Err(_) => match init.extract::<usize>() {
-            Ok(n) => Ok(InitGuess::Random(n)),
-            Err(_) => Err(PyException::new_err("init must be either an InvestStrategies object or a positive integer")),
-        }
+impl PyContainer for PyInvestExpDiscounter {
+    type Item = InvestExpDiscounter_;
+    fn get(&self) -> &Self::Item {
+        &self.0
     }
 }
 
@@ -665,22 +726,17 @@ fn extract_invest_init(init: &PyAny) -> PyResult<InitGuess<InvestStrategies>> {
 impl PyInvestExpDiscounter {
     #[new]
     fn new(state0: PyInvestPayoff, gammas: PyReadonlyArray1<f64>) -> Self {
-        PyInvestExpDiscounter(InvestExponentialDiscounter::new(state0.0, gammas.as_array().to_owned()).unwrap())
+        PyInvestExpDiscounter(InvestExpDiscounter::new(state0.0, gammas.as_array().to_owned()).unwrap())
     }
 
     #[staticmethod]
     fn expand_from<'py>(
         py: Python<'py>,
-        state0_list: &PyList,
-        gammas_list: &PyList,
+        state0_list: Vec<PyInvestPayoff>,
+        gammas_list: Vec<PyReadonlyArray1<f64>>,
     ) -> &'py PyList {
-        let state0_vec = state0_list.iter().map(|s|
-            s.extract::<PyInvestPayoff>()
-             .unwrap().0
-        ).collect::<Vec<_>>();
-        let gammas_vec = gammas_list.iter().map(|g|
-            g.extract::<PyReadonlyArray1<f64>>().unwrap().as_array().to_owned()
-        ).collect::<Vec<_>>();
+        let state0_vec = state0_list.into_iter().map(|x| x.0).collect::<Vec<_>>();
+        let gammas_vec = gammas_list.into_iter().map(|x| x.as_array().to_owned()).collect::<Vec<_>>();
         let aggs = init_rep!(InvestExpDiscounter_ =>
             state0: InvestPayoff_ = state0_vec;
             gammas: Array1<f64> = gammas_vec
@@ -703,7 +759,7 @@ impl PyInvestExpDiscounter {
 
     #[args(options = "&DEFAULT_OPTIONS")]
     fn solve(&self, init: &PyAny, options: &PySolverOptions) -> PyResult<PyInvestStrategies> {
-        let init_guess = extract_invest_init(init)?;
+        let init_guess = extract_init::<_, PyInvestStrategies>(init)?;
         let solver_options = expand_options(init_guess, &options);
         let res = solve(&self.0, &solver_options);
         match res {
@@ -714,7 +770,7 @@ impl PyInvestExpDiscounter {
 }
 
 #[pyclass(name = "Scenario")]
-pub struct PyScenario(Scenario<ExponentialDiscounter<DefaultPayoff_, DefaultPayoff_>>);
+pub struct PyScenario(Scenario<Actions, Strategies, ExponentialDiscounter<DefaultPayoff_, DefaultPayoff_>>);
 
 #[pymethods]
 impl PyScenario {
@@ -730,9 +786,9 @@ impl PyScenario {
         }
     }
 
-    #[args(init = "None", options = "&DEFAULT_OPTIONS")]
-    fn solve<'py>(&self, py: Python<'py>, init: Option<&PyAny>, options: &PySolverOptions) -> PyResult<&'py PyList> {
-        let init_guess = extract_init(init, self.0.aggs()[0].states.len())?;
+    #[args(options = "&DEFAULT_OPTIONS")]
+    fn solve<'py>(&self, py: Python<'py>, init: &PyAny, options: &PySolverOptions) -> PyResult<&'py PyList> {
+        let init_guess = extract_init::<_, PyStrategies>(init)?;
         let solver_options = expand_options(init_guess, &options);
         match self.0.solve(&solver_options) {
             Ok(res) => {
@@ -747,7 +803,7 @@ impl PyScenario {
 }
 
 #[pyclass(name = "InvestScenario")]
-pub struct PyInvestScenario(Scenario<InvestExponentialDiscounter<InvestPayoff_>>);
+pub struct PyInvestScenario(Scenario<InvestActions, InvestStrategies, InvestExpDiscounter<InvestPayoff_>>);
 
 #[pymethods]
 impl PyInvestScenario {
@@ -765,7 +821,7 @@ impl PyInvestScenario {
 
     #[args(options = "&DEFAULT_OPTIONS")]
     fn solve<'py>(&self, py: Python<'py>, init: &PyAny, options: &PySolverOptions) -> PyResult<&'py PyList> {
-        let init_guess = extract_invest_init(init)?;
+        let init_guess = extract_init::<_, PyInvestStrategies>(init)?;
         let solver_options = expand_options(init_guess, &options);
         match self.0.solve(&solver_options) {
             Ok(res) => {

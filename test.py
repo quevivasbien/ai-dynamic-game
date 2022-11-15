@@ -26,13 +26,13 @@ payoffFunc = dp.PayoffFunc(
 )
 
 agg = dp.Aggregator(
-    states = [payoffFunc]*t,
+    state = payoffFunc,
     gammas = gammas
 )
 
 print(f"Solving for {n} players and {t} time steps...")
 time0 = time()
-res = agg.solve()
+res = agg.solve(t)
 time1 = time()
 print(f"Solved in {time1 - time0:.3f} seconds")
 print("Optimal strategies:", res, sep = '\n')
