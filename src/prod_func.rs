@@ -46,6 +46,8 @@ impl<A: ActionType> ProdFunc<A> for DefaultProd {
     }
 }
 
+impl MutatesOnAction<Actions> for DefaultProd {}
+
 impl MutatesOnAction<InvestActions> for DefaultProd {
     fn mutate_on_action_inplace(&mut self, actions: &InvestActions) {
         self.a.iter_mut().zip(actions.inv_s().iter()).for_each(

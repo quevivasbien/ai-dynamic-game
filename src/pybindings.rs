@@ -1,10 +1,10 @@
-use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray3, IntoPyArray, PyArray, Ix3};
+use numpy::{PyArray1, PyReadonlyArray1, PyReadonlyArray3, IntoPyArray, PyArray, Ix3, Ix2};
 use numpy::ndarray::{Array1};
 use pyo3::exceptions::PyException;
 use pyo3::{prelude::*, types::PyList};
 
 use crate::cost_func::{FixedUnitCost, FixedInvestCost};
-use crate::csf::DefaultCSF;
+use crate::csf::{DefaultCSF, MaybeNoWinCSF};
 use crate::disaster_cost::ConstantDisasterCost;
 use crate::payoff_func::{PayoffFunc, DefaultPayoff};
 use crate::prod_func::{ProdFunc, DefaultProd};
@@ -12,7 +12,7 @@ use crate::reward_func::LinearReward;
 use crate::risk_func::WinnerOnlyRisk;
 use crate::scenarios::Scenario;
 use crate::solve::{InitGuess, NMOptions, SolverOptions, solve};
-use crate::states::{PayoffAggregator, ExponentialDiscounter, InvestExpDiscounter};
+use crate::states::{PayoffAggregator, ExponentialDiscounter, InvestExpDiscounter, EndsOnContestWin};
 use crate::strategies::*;
 use crate::init_rep;
 
@@ -764,6 +764,75 @@ impl PyInvestExpDiscounter {
         let res = solve(&self.0, &solver_options);
         match res {
             Ok(res) => Ok(PyInvestStrategies(res)),
+            Err(e) => Err(PyException::new_err(format!("{}", e))),
+        }
+    }
+}
+
+type MaybeNoWinPayoff_ = DefaultPayoff<
+    Actions,
+    DefaultProd,
+    WinnerOnlyRisk,
+    MaybeNoWinCSF,
+    LinearReward,
+    ConstantDisasterCost,
+    FixedUnitCost,
+>;
+
+type EndOnWinAggregator_ = EndsOnContestWin<
+    Actions,
+    Strategies,
+    DefaultProd,
+    WinnerOnlyRisk,
+    MaybeNoWinCSF,
+    LinearReward,
+    ConstantDisasterCost,
+    FixedUnitCost,
+    MaybeNoWinPayoff_,
+    ExponentialDiscounter<MaybeNoWinPayoff_, MaybeNoWinPayoff_>,
+>;
+
+#[pyclass(name = "EndOnWinAggregator")]
+pub struct PyEndOnWinAggregator(EndOnWinAggregator_);
+
+#[pymethods]
+impl PyEndOnWinAggregator {
+    #[new]
+    fn new(child: PyExponentialDiscounter) -> Self {
+        // replace CSF with MaybeNoWinCSF
+        let payoff_func = DefaultPayoff::new(
+            child.0.state.prod_func,
+            child.0.state.risk_func,
+            MaybeNoWinCSF::default(),
+            child.0.state.reward_func,
+            child.0.state.disaster_cost,
+            child.0.state.cost_func,
+        ).unwrap();
+        let new_child = ExponentialDiscounter::new(
+            payoff_func, child.0.gammas
+        ).unwrap();
+        PyEndOnWinAggregator(EndOnWinAggregator_::new(new_child))
+    }
+
+    fn u_i(&self, i: usize, strategies: &PyStrategies) -> f64 {
+        self.0.child.u_i(i, &strategies.0)
+    }
+
+    fn u<'py>(&self, py: Python<'py>, strategies: &PyStrategies) -> &'py PyArray1<f64> {
+        self.0.child.u(&strategies.0).into_pyarray(py)
+    }
+
+    fn probas<'py>(&self, py: Python<'py>, strategies: &PyStrategies) -> &'py PyArray<f64, Ix2> {
+        self.0.probas(&strategies.0).into_pyarray(py)
+    }
+
+    #[args(options = "&DEFAULT_OPTIONS")]
+    fn solve(&self, init: &PyAny, options: &PySolverOptions) -> PyResult<PyStrategies> {
+        let init_guess = extract_init::<_, PyStrategies>(init)?;
+        let solver_options = expand_options(init_guess, &options);
+        let res = solve(&self.0, &solver_options);
+        match res {
+            Ok(res) => Ok(PyStrategies(res)),
             Err(e) => Err(PyException::new_err(format!("{}", e))),
         }
     }

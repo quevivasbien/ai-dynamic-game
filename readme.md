@@ -71,11 +71,7 @@ This should print
 Payoff from actions: [-0.2099315 -0.2099315]
 ```
 
-To make sure things are working correctly, you can try running
-```
-python test.py
-```
-from this directory, which will solve for equilibria of a few toy scenarios and plot the results.
+To make sure things are working correctly, you can try running the `test.py` script in this directory.
 
 
 ## What does this model?

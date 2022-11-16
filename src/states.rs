@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use numpy::Ix2;
 use numpy::ndarray::{Array, Ix1};
 
 use crate::cost_func::CostFunc;
@@ -90,7 +91,7 @@ where A: ActionType, S: StrategyType<Act = A>, T: StateIterator<A, S> + Discount
         let mut u = 0.0;
         for (t, actions) in actions_seq.iter().enumerate() {
             u += gammas[i].powi(t.try_into().unwrap()) * state.belief(i).u_i(i, actions);
-            if t != actions_seq.len() - 1 {
+            if t != strategies.t() - 1 {
                 self.advance_state(state, actions);
             }
         }
@@ -105,7 +106,7 @@ where A: ActionType, S: StrategyType<Act = A>, T: StateIterator<A, S> + Discount
             u.iter_mut().zip(gammas.iter()).enumerate().for_each(|(i, (u_i, gamma))| {
                 *u_i += gamma.powi(t.try_into().unwrap()) * state.belief(i).u_i(i, actions);
             });
-            if t != actions_seq.len() - 1 {
+            if t != strategies.t() - 1 {
                 self.advance_state(state, actions);
             }
         }
@@ -117,8 +118,8 @@ where A: ActionType, S: StrategyType<Act = A>, T: StateIterator<A, S> + Discount
 pub struct FixedStateDiscounter<A, S, P, T>
 where A: ActionType, S: StrategyType<Act = A>, P: PayoffFunc<Act = A>, T: State<P>
 {
-    state: T,
-    gammas: Array<f64, Ix1>,
+    pub state: T,
+    pub gammas: Array<f64, Ix1>,
     _phantoms: PhantomData<(A, S, P)>,
 }
 
@@ -160,8 +161,8 @@ where A: ActionType,
       P: PayoffFunc<Act = A>, T: State<P>,
       T: State<P> + MutatesOnAction<A>,
 {
-    state0: T,
-    gammas: Array<f64, Ix1>,
+    pub state0: T,
+    pub gammas: Array<f64, Ix1>,
     _phantoms: PhantomData<(A, S, P)>,
 }
 
@@ -222,7 +223,7 @@ where A: ActionType,
       Z: State<DefaultPayoff<A, T, U, V, W, X, Y>>,
       C: Discounter + StateIterator<A, S>
 {
-    child: C,
+    pub child: C,
     _phantoms: PhantomData<(A, S, T, U, V, W, X, Y, Z)>,
 }
 
@@ -240,6 +241,24 @@ where A: ActionType,
 {
     pub fn new(child: C) -> Self {
         EndsOnContestWin { child, _phantoms: PhantomData }
+    }
+    pub fn probas(&self, strategies: &S) -> Array<f64, Ix2> {
+        let mut probas = vec![1.; self.n()];
+        let mut all_probas: Vec<f64> = Vec::with_capacity(self.n() * strategies.t());
+        let actions_seq = strategies.clone().to_actions();
+        let mut state = self.child.state0().clone();
+        for (t, actions) in actions_seq.iter().enumerate() {
+            for i in 0..self.n() {
+                all_probas.push(probas[i]);
+                if t != strategies.t() - 1 {
+                    let payoff_func = state.belief(i);
+                    let (_, p) = payoff_func.prod_func.f(actions);
+                    probas[i] *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
+                    state.mutate_on_action_inplace(actions);
+                }
+            }
+        }
+        Array::from_shape_vec((strategies.t(), self.n()), all_probas).unwrap()
     }
 }
 
@@ -290,9 +309,11 @@ where A: ActionType,
         for (t, actions) in actions_seq.iter().enumerate() {
             let payoff_func = state.belief(i);
             u += proba * gamma.powi(t.try_into().unwrap()) * payoff_func.u_i(i, actions);
-            let (_, p) = payoff_func.prod_func.f(actions);
-            proba *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
-            if t != actions_seq.len() - 1 {
+            if t != strategies.t() - 1 {
+                // update proba
+                let (_, p) = payoff_func.prod_func.f(actions);
+                proba *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
+                // update state
                 self.advance_state(&mut state, actions);
             }
         }
@@ -307,11 +328,16 @@ where A: ActionType,
         for (t, actions) in actions_seq.iter().enumerate() {
             u.iter_mut().zip(gammas.iter()).enumerate().for_each(|(i, (u_i, gamma))| {
                 let payoff_func = state.belief(i);
+                // update u
                 *u_i += probas[i] * gamma.powi(t.try_into().unwrap()) * payoff_func.u_i(i, actions);
-                let (_, p) = payoff_func.prod_func.f(actions);
-                probas[i] *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
+                if t != strategies.t() {
+                    // update probas
+                    let (_, p) = payoff_func.prod_func.f(actions);
+                    probas[i] *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
+                }
             });
-            if t != actions_seq.len() - 1 {
+            if t != strategies.t() - 1 {
+                // update state
                 self.advance_state(state, actions);
             }
         }
