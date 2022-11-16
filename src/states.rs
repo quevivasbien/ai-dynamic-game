@@ -2,8 +2,14 @@ use std::marker::PhantomData;
 
 use numpy::ndarray::{Array, Ix1};
 
+use crate::cost_func::CostFunc;
+use crate::csf::CSF;
+use crate::disaster_cost::DisasterCost;
+use crate::prod_func::ProdFunc;
+use crate::reward_func::RewardFunc;
+use crate::risk_func::RiskFunc;
 use crate::strategies::*;
-use crate::payoff_func::PayoffFunc;
+use crate::payoff_func::{PayoffFunc, DefaultPayoff};
 
 pub trait State<T: PayoffFunc>: Clone + Send + Sync {
     fn n(&self) -> usize;
@@ -202,3 +208,113 @@ where A: ActionType,
 }
 
 pub type InvestExpDiscounter<P> = DynStateDiscounter<InvestActions, InvestStrategies, P, P>;
+
+
+pub struct EndsOnContestWin<A, S, T, U, V, W, X, Y, Z, C>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      T: ProdFunc<A>,
+      U: RiskFunc,
+      V: CSF,
+      W: RewardFunc,
+      X: DisasterCost,
+      Y: CostFunc<A>,
+      Z: State<DefaultPayoff<A, T, U, V, W, X, Y>>,
+      C: Discounter + StateIterator<A, S>
+{
+    child: C,
+    _phantoms: PhantomData<(A, S, T, U, V, W, X, Y, Z)>,
+}
+
+impl<A, S, T, U, V, W, X, Y, Z, C> EndsOnContestWin<A, S, T, U, V, W, X, Y, Z, C>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      T: ProdFunc<A>,
+      U: RiskFunc,
+      V: CSF,
+      W: RewardFunc,
+      X: DisasterCost,
+      Y: CostFunc<A>,
+      Z: State<DefaultPayoff<A, T, U, V, W, X, Y>> + MutatesOnAction<A>,
+      C: Discounter + StateIterator<A, S, StateType = Z>
+{
+    pub fn new(child: C) -> Self {
+        EndsOnContestWin { child, _phantoms: PhantomData }
+    }
+}
+
+impl<A, S, T, U, V, W, X, Y, Z, C> StateIterator<A, S> for EndsOnContestWin<A, S, T, U, V, W, X, Y, Z, C>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      T: ProdFunc<A>,
+      U: RiskFunc,
+      V: CSF,
+      W: RewardFunc,
+      X: DisasterCost,
+      Y: CostFunc<A>,
+      Z: State<DefaultPayoff<A, T, U, V, W, X, Y>> + MutatesOnAction<A>,
+      C: Discounter + StateIterator<A, S, StateType = Z>,
+{
+    type PFunc = DefaultPayoff<A, T, U, V, W, X, Y>;
+    type StateType = Z;
+    fn state0(&self) -> &Z {
+        self.child.state0()
+    }
+
+    fn advance_state(&self, state: &mut Z, actions: &A) {
+        state.mutate_on_action_inplace(actions);
+    }
+}
+
+impl<A, S, T, U, V, W, X, Y, Z, C> PayoffAggregator<A, S> for EndsOnContestWin<A, S, T, U, V, W, X, Y, Z, C>
+where A: ActionType,
+      S: StrategyType<Act = A>,
+      T: ProdFunc<A>,
+      U: RiskFunc,
+      V: CSF,
+      W: RewardFunc,
+      X: DisasterCost,
+      Y: CostFunc<A>,
+      Z: State<DefaultPayoff<A, T, U, V, W, X, Y>> + MutatesOnAction<A>,
+      C: Discounter + StateIterator<A, S, StateType = Z>,
+{
+    fn n(&self) -> usize {
+        self.child.n()
+    }
+    fn u_i(&self, i: usize, strategies: &S) -> f64 {
+        let actions_seq = strategies.clone().to_actions();
+        let mut state = self.child.state0().clone();
+        let gamma = self.child.gammas()[i];
+        let mut proba = 1.;  // probability that nobody has won yet
+        let mut u = 0.;
+        for (t, actions) in actions_seq.iter().enumerate() {
+            let payoff_func = state.belief(i);
+            u += proba * gamma.powi(t.try_into().unwrap()) * payoff_func.u_i(i, actions);
+            let (_, p) = payoff_func.prod_func.f(actions);
+            proba *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
+            if t != actions_seq.len() - 1 {
+                self.advance_state(&mut state, actions);
+            }
+        }
+        u
+    }
+    fn u(&self, strategies: &S) -> Array<f64, Ix1> {
+        let actions_seq = strategies.clone().to_actions();
+        let state = &mut self.state0().clone();
+        let gammas = self.child.gammas();
+        let mut probas = vec![1.; gammas.len()];
+        let mut u: Array<f64, Ix1> = Array::zeros(gammas.len());
+        for (t, actions) in actions_seq.iter().enumerate() {
+            u.iter_mut().zip(gammas.iter()).enumerate().for_each(|(i, (u_i, gamma))| {
+                let payoff_func = state.belief(i);
+                *u_i += probas[i] * gamma.powi(t.try_into().unwrap()) * payoff_func.u_i(i, actions);
+                let (_, p) = payoff_func.prod_func.f(actions);
+                probas[i] *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
+            });
+            if t != actions_seq.len() - 1 {
+                self.advance_state(state, actions);
+            }
+        }
+        u
+    }
+}

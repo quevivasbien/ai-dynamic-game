@@ -775,11 +775,8 @@ pub struct PyScenario(Scenario<Actions, Strategies, ExponentialDiscounter<Defaul
 #[pymethods]
 impl PyScenario {
     #[new]
-    fn new(aggs: &PyList) -> PyResult<Self> {
-        let aggs_vec = aggs.iter().map(|a|
-                a.extract::<PyExponentialDiscounter>()
-                .expect("aggs should contain only objects of type PyExponentialDiscounter").0
-        ).collect();
+    fn new(aggs: Vec<PyExponentialDiscounter>) -> PyResult<Self> {
+        let aggs_vec = aggs.into_iter().map(|a| a.0).collect();
         match Scenario::new(aggs_vec) {
             Ok(s) => Ok(PyScenario(s)),
             Err(e) => Err(PyException::new_err(format!("Error when constructing scenario: {}", e))),
@@ -808,11 +805,8 @@ pub struct PyInvestScenario(Scenario<InvestActions, InvestStrategies, InvestExpD
 #[pymethods]
 impl PyInvestScenario {
     #[new]
-    fn new(aggs: &PyList) -> PyResult<Self> {
-        let aggs_vec = aggs.iter().map(|a|
-                a.extract::<PyInvestExpDiscounter>()
-                .expect("aggs should contain only objects of type PyInvestExpDiscounter").0
-        ).collect();
+    fn new(aggs: Vec<PyInvestExpDiscounter>) -> PyResult<Self> {
+        let aggs_vec = aggs.into_iter().map(|a| a.0).collect();
         match Scenario::new(aggs_vec) {
             Ok(s) => Ok(PyInvestScenario(s)),
             Err(e) => Err(PyException::new_err(format!("Error when constructing scenario: {}", e))),
