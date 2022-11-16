@@ -47,6 +47,10 @@ impl PyActions {
         )
     }
 
+    fn data<'py>(&self, py: Python<'py>) -> &'py PyArray<f64, Ix2> {
+        self.0.data().to_owned().into_pyarray(py)
+    }
+
     fn __str__(&self) -> String {
         format!("{}", self.0)
     }
@@ -80,6 +84,10 @@ impl PyInvestActions {
             }
         )
     }
+    
+    fn data<'py>(&self, py: Python<'py>) -> &'py PyArray<f64, Ix2> {
+        self.0.data().to_owned().into_pyarray(py)
+    }
 
     fn __str__(&self) -> String {
         format!("{}", self.0)
@@ -108,17 +116,18 @@ impl PyStrategies {
     }
 
     #[staticmethod]
-    fn from_actions(actions: &PyList) -> Self {
-        let actions_vec = actions.iter().map(|a|
-            a.extract::<PyActions>()
-             .expect("actions should contain only objects of type PyActions").0
-        ).collect();
+    fn from_actions(actions: Vec<PyActions>) -> Self {
+        let actions_vec = actions.into_iter().map(|a| a.0).collect();
         PyStrategies(
             match Strategies::from_actions(actions_vec) {
                 Ok(strategies) => strategies,
                 Err(e) => panic!("{}", e),
             }
         )
+    }
+
+    fn to_actions(&self) -> Vec<PyActions> {
+        self.0.clone().to_actions().iter().map(|a| PyActions(a.clone())).collect()
     }
 
     fn data<'py>(&self, py: Python<'py>) -> &'py PyArray<f64, Ix3> {
@@ -152,10 +161,9 @@ impl PyInvestStrategies {
     }
 
     #[staticmethod]
-    fn from_actions(actions: &PyList) -> Self {
-        let actions_vec = actions.iter().map(|a|
-            a.extract::<PyInvestActions>()
-             .expect("actions should contain only objects of type PyInvestActions").0
+    fn from_actions(actions: Vec<PyInvestActions>) -> Self {
+        let actions_vec = actions.into_iter().map(|a|
+            a.0
         ).collect();
         PyInvestStrategies(
             match InvestStrategies::from_actions(actions_vec) {
@@ -163,6 +171,10 @@ impl PyInvestStrategies {
                 Err(e) => panic!("{}", e),
             }
         )
+    }
+
+    fn to_actions(&self) -> Vec<PyInvestActions> {
+        self.0.clone().to_actions().iter().map(|a| PyInvestActions(a.clone())).collect()
     }
 
     fn data<'py>(&self, py: Python<'py>) -> &'py PyArray<f64, Ix3> {
@@ -769,14 +781,14 @@ impl PyInvestExpDiscounter {
     }
 }
 
-type MaybeNoWinPayoff_ = DefaultPayoff<
-    Actions,
+type MaybeNoWinPayoff_<A, C> = DefaultPayoff<
+    A,
     DefaultProd,
     WinnerOnlyRisk,
     MaybeNoWinCSF,
     LinearReward,
     ConstantDisasterCost,
-    FixedUnitCost,
+    C,
 >;
 
 type EndOnWinAggregator_ = EndsOnContestWin<
@@ -788,8 +800,8 @@ type EndOnWinAggregator_ = EndsOnContestWin<
     LinearReward,
     ConstantDisasterCost,
     FixedUnitCost,
-    MaybeNoWinPayoff_,
-    ExponentialDiscounter<MaybeNoWinPayoff_, MaybeNoWinPayoff_>,
+    MaybeNoWinPayoff_<Actions, FixedUnitCost>,
+    ExponentialDiscounter<MaybeNoWinPayoff_<Actions, FixedUnitCost>, MaybeNoWinPayoff_<Actions, FixedUnitCost>>,
 >;
 
 #[pyclass(name = "EndOnWinAggregator")]
@@ -833,6 +845,65 @@ impl PyEndOnWinAggregator {
         let res = solve(&self.0, &solver_options);
         match res {
             Ok(res) => Ok(PyStrategies(res)),
+            Err(e) => Err(PyException::new_err(format!("{}", e))),
+        }
+    }
+}
+
+type InvestEndOnWinAggregator_ = EndsOnContestWin<
+    InvestActions,
+    InvestStrategies,
+    DefaultProd,
+    WinnerOnlyRisk,
+    MaybeNoWinCSF,
+    LinearReward,
+    ConstantDisasterCost,
+    FixedInvestCost,
+    MaybeNoWinPayoff_<InvestActions, FixedInvestCost>,
+    InvestExpDiscounter<MaybeNoWinPayoff_<InvestActions, FixedInvestCost>>,
+>;
+
+#[pyclass(name = "InvestEndOnWinAggregator")]
+pub struct PyInvestEndOnWinAggregator(InvestEndOnWinAggregator_);
+
+#[pymethods]
+impl PyInvestEndOnWinAggregator {
+    #[new]
+    fn new(child: PyInvestExpDiscounter) -> Self {
+        // replace CSF with MaybeNoWinCSF
+        let payoff_func = DefaultPayoff::new(
+            child.0.state0.prod_func,
+            child.0.state0.risk_func,
+            MaybeNoWinCSF::default(),
+            child.0.state0.reward_func,
+            child.0.state0.disaster_cost,
+            child.0.state0.cost_func,
+        ).unwrap();
+        let new_child = InvestExpDiscounter::new(
+            payoff_func, child.0.gammas
+        ).unwrap();
+        PyInvestEndOnWinAggregator(InvestEndOnWinAggregator_::new(new_child))
+    }
+
+    fn u_i(&self, i: usize, strategies: &PyInvestStrategies) -> f64 {
+        self.0.child.u_i(i, &strategies.0)
+    }
+
+    fn u<'py>(&self, py: Python<'py>, strategies: &PyInvestStrategies) -> &'py PyArray1<f64> {
+        self.0.child.u(&strategies.0).into_pyarray(py)
+    }
+
+    fn probas<'py>(&self, py: Python<'py>, strategies: &PyInvestStrategies) -> &'py PyArray<f64, Ix2> {
+        self.0.probas(&strategies.0).into_pyarray(py)
+    }
+
+    #[args(options = "&DEFAULT_OPTIONS")]
+    fn solve(&self, init: &PyAny, options: &PySolverOptions) -> PyResult<PyInvestStrategies> {
+        let init_guess = extract_init::<_, PyInvestStrategies>(init)?;
+        let solver_options = expand_options(init_guess, &options);
+        let res = solve(&self.0, &solver_options);
+        match res {
+            Ok(res) => Ok(PyInvestStrategies(res)),
             Err(e) => Err(PyException::new_err(format!("{}", e))),
         }
     }

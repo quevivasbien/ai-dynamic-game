@@ -34,6 +34,7 @@ fn dynapai(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyInvestPayoff>()?;
     m.add_class::<PyInvestExpDiscounter>()?;
     m.add_class::<PyEndOnWinAggregator>()?;
+    m.add_class::<PyInvestEndOnWinAggregator>()?;
     m.add_class::<PyScenario>()?;
     m.add_class::<PyInvestScenario>()?;
     Ok(())

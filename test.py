@@ -75,7 +75,14 @@ class Tester:
         child = self.get_basic_agg()
         agg = dp.EndOnWinAggregator(child)
         res = self.solve_agg(agg, strat_type = 'strategies (end-on-win)', plot = plot)
-        print("Player's beliefs about probabilities of reaching each t:", agg.probas(res), sep = '\n')
+        print("Players' beliefs about probabilities of reaching each t:", agg.probas(res), sep = '\n')
+        return res
+    
+    def solve_invest_end_on_win(self, plot = False):
+        child = self.get_invest_agg()
+        agg = dp.InvestEndOnWinAggregator(child)
+        res = self.solve_agg(agg, strat_type = 'invest strategies (end-on-win)', plot = plot)
+        print("Players' beliefs about probabilities of reaching each t:", agg.probas(res), sep = '\n')
         return res
 
     def solve_scenario(self):
@@ -114,6 +121,7 @@ def main():
     parser.add_argument('--basic', action = 'store_true', help = 'solve basic problem')
     parser.add_argument('--invest', action = 'store_true', help = 'solve problem with investment')
     parser.add_argument('--end-on-win', action = 'store_true', help = 'solve basic problem with end-on-win condition')
+    parser.add_argument('--invest-end-on-win', action = 'store_true', help = 'solve problem with investment and end-on-win condition')
     parser.add_argument('--scenario', action = 'store_true', help = 'solve multiple invest problems in parallel')
     parser.add_argument('--all', action = 'store_true', help = 'run all tests')
     parser.add_argument('--plot', action = 'store_true', help = 'plot results')
@@ -126,6 +134,8 @@ def main():
         tester.solve_invest(args.plot)
     if args.end_on_win or args.all:
         tester.solve_end_on_win(args.plot)
+    if args.invest_end_on_win or args.all:
+        tester.solve_invest_end_on_win(args.plot)
     if args.scenario or args.all:
         tester.solve_scenario()
 

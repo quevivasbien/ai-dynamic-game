@@ -254,8 +254,10 @@ where A: ActionType,
                     let payoff_func = state.belief(i);
                     let (_, p) = payoff_func.prod_func.f(actions);
                     probas[i] *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();
-                    state.mutate_on_action_inplace(actions);
                 }
+            }
+            if t != strategies.t() - 1 {
+                state.mutate_on_action_inplace(actions);
             }
         }
         Array::from_shape_vec((strategies.t(), self.n()), all_probas).unwrap()
@@ -330,7 +332,7 @@ where A: ActionType,
                 let payoff_func = state.belief(i);
                 // update u
                 *u_i += probas[i] * gamma.powi(t.try_into().unwrap()) * payoff_func.u_i(i, actions);
-                if t != strategies.t() {
+                if t != strategies.t() - 1 {
                     // update probas
                     let (_, p) = payoff_func.prod_func.f(actions);
                     probas[i] *= 1. - payoff_func.csf.q(p.view()).iter().sum::<f64>();

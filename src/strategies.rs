@@ -60,7 +60,7 @@ impl Actions {
 
 impl fmt::Display for Actions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "xs = {}, xp = {}", self.xs(), self.xp())
+        write!(f, "xs = {:.4}, xp = {:.4}", self.xs(), self.xp())
     }
 }
 
@@ -117,7 +117,7 @@ impl InvestActions {
 
 impl fmt::Display for InvestActions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "xs = {}, xp = {}, inv_s = {}, inv_p = {}", self.xs(), self.xp(), self.inv_s(), self.inv_p())
+        write!(f, "xs = {:.4}, xp = {:.4}, inv_s = {:.4}, inv_p = {:.4}", self.xs(), self.xp(), self.inv_s(), self.inv_p())
     }
 }
 
