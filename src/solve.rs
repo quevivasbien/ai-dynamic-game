@@ -11,12 +11,12 @@ const INIT_MU: f64 = -1.;
 const INIT_SIGMA: f64 = 0.1;
 
 #[derive(Clone, Debug)]
-pub enum InitGuess<S: StrategyType> {
+pub enum InitGuess<S: StrategyType + Clone> {
     Random(usize),
     Fixed(S),
 }
 
-impl<S: StrategyType> InitGuess<S> {
+impl<S: StrategyType + Clone> InitGuess<S> {
     fn to_fixed(&self, n: usize) -> S {
         match self {
             InitGuess::Random(t) => S::random(*t, n, INIT_MU, INIT_SIGMA).unwrap(),
@@ -26,14 +26,14 @@ impl<S: StrategyType> InitGuess<S> {
 }
 
 #[derive(Clone, Debug)]
-pub struct SolverOptions<S: StrategyType> {
+pub struct SolverOptions<S: StrategyType + Clone> {
     pub init_guess: InitGuess<S>,
     pub max_iters: u64,
     pub tol: f64,
     pub nm_options: NMOptions,
 }
 
-impl<S: StrategyType> SolverOptions<S> {
+impl<S: StrategyType + Clone> SolverOptions<S> {
     pub fn from_init_guess(init_guess: S) -> Self {
         SolverOptions {
             init_guess: InitGuess::Fixed(init_guess),
@@ -70,7 +70,7 @@ impl Default for NMOptions {
     }
 }
 
-struct PlayerObjective<'a, S: StrategyType, T: PayoffAggregator<Strat = S>>{
+struct PlayerObjective<'a, S: StrategyType + Clone, T: PayoffAggregator<Strat = S>>{
     pub payoff_aggregator: &'a T,
     pub i: usize,
     pub base_strategies: &'a S,
@@ -78,7 +78,7 @@ struct PlayerObjective<'a, S: StrategyType, T: PayoffAggregator<Strat = S>>{
 
 // implement traits needed for argmin
 
-impl<S: StrategyType, T: PayoffAggregator<Strat = S>> CostFunction for PlayerObjective<'_, S, T> {
+impl<S: StrategyType + Clone, T: PayoffAggregator<Strat = S>> CostFunction for PlayerObjective<'_, S, T> {
     type Param = Vec<f64>;
     type Output = f64;
 
@@ -106,7 +106,7 @@ fn create_simplex(init_guess: ArrayView<f64, Ix2>, init_simplex_size: f64) -> Ve
     simplex
 }
 
-fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat: &S, agg: &T, options: &NMOptions) -> Result<Array<f64, Ix2>, argmin::core::Error> {
+fn solve_for_i<S: StrategyType + Clone, T: PayoffAggregator<Strat = S>>(i: usize, strat: &S, agg: &T, options: &NMOptions) -> Result<Array<f64, Ix2>, argmin::core::Error> {
     let init_simplex = create_simplex(
         strat.data().slice(s![.., i, ..]),
         options.init_simplex_size
@@ -127,7 +127,7 @@ fn solve_for_i<S: StrategyType, T: PayoffAggregator<Strat = S>>(i: usize, strat:
 }
 
 fn update_strat<S, T>(strat: &mut S, agg: &T, nm_options: &NMOptions) -> Result<(), argmin::core::Error>
-where S: StrategyType, T: PayoffAggregator<Strat = S>
+where S: StrategyType + Clone, T: PayoffAggregator<Strat = S>
 {
     let new_data = (0..strat.n()).into_par_iter().map(|i| {
         solve_for_i(i, strat, agg, nm_options)
@@ -147,7 +147,7 @@ fn within_tol<S: StrategyType>(current: &S, last: &S, tol: f64) -> bool {
 }
 
 pub fn solve<S, T>(agg: &T, options: &SolverOptions<S>) -> Result<S, argmin::core::Error>
-where S: StrategyType, T: PayoffAggregator<Strat = S>
+where S: StrategyType + Clone, T: PayoffAggregator<Strat = S>
 {
     let mut current_strat = options.init_guess.to_fixed(agg.n());
     for i in 0..options.max_iters {

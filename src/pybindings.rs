@@ -553,7 +553,7 @@ impl PySolverOptions {
     }
 }
 
-fn expand_options<S: StrategyType>(init_guess: InitGuess<S>, options: &PySolverOptions) -> SolverOptions<S> {
+fn expand_options<S: StrategyType + Clone>(init_guess: InitGuess<S>, options: &PySolverOptions) -> SolverOptions<S> {
     SolverOptions {
         init_guess: init_guess,
         max_iters: options.max_iters,

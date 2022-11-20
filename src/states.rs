@@ -3,7 +3,7 @@ use numpy::ndarray::{Array, Ix1};
 use crate::strategies::*;
 use crate::payoff_func::PayoffFunc;
 
-pub trait State<T: PayoffFunc>: Clone + Send + Sync {
+pub trait State<T: PayoffFunc>: Send + Sync {
     fn n(&self) -> usize;
     fn belief(&self, i: usize) -> &T;
 }
@@ -46,7 +46,7 @@ impl<T: PayoffFunc> HetBeliefs<T> {
 }
 
 pub trait PayoffAggregator: Send + Sync {
-    type Strat: StrategyType;
+    type Strat: StrategyType + Clone;
     fn n(&self) -> usize;
     fn u_i(&self, i: usize, strategies: &Self::Strat) -> f64;
     fn u(&self, strategies: &Self::Strat) -> Array<f64, Ix1> {
@@ -55,14 +55,16 @@ pub trait PayoffAggregator: Send + Sync {
 }
 
 #[derive(Clone)]
-pub struct ExponentialDiscounter<U: PayoffFunc<Act = Actions>, T: State<U>> {
+pub struct ExponentialDiscounter<U, T>
+where U: PayoffFunc<Act = Actions>, T: State<U> + Clone
+{
     n: usize,
     pub states: Vec<T>,
     pub gammas: Array<f64, Ix1>,
     phantom: std::marker::PhantomData<U>,
 }
 
-impl<U: PayoffFunc<Act = Actions>, T: State<U>> ExponentialDiscounter<U, T> {
+impl<U: PayoffFunc<Act = Actions>, T: State<U> + Clone> ExponentialDiscounter<U, T> {
     pub fn new(states: Vec<T>, gammas: Array<f64, Ix1>) -> Result<Self, &'static str> {
         if states.len() == 0 {
             return Err("When creating new ExponentialDiscounter: states must have length > 0");
@@ -89,7 +91,9 @@ impl<U: PayoffFunc<Act = Actions>, T: State<U>> ExponentialDiscounter<U, T> {
     }
 }
 
-impl<U: PayoffFunc<Act = Actions>, T: State<U>> PayoffAggregator for ExponentialDiscounter<U, T> {
+impl<U, T> PayoffAggregator for ExponentialDiscounter<U, T>
+where U: PayoffFunc<Act = Actions>, T: State<U> + Clone
+{
     type Strat = Strategies;
 
     fn n(&self) -> usize {

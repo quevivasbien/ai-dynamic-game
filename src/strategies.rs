@@ -2,14 +2,14 @@ use std::fmt;
 use numpy::ndarray::{Array, ArrayView, Axis, Ix2, Ix3, Ix1, stack, ArrayViewMut, Slice, s};
 use ndarray_rand::{RandomExt, rand_distr::LogNormal};
 
-pub trait ActionType: Clone + Send + Sync {
+pub trait ActionType: Send + Sync {
     fn data(&self) -> ArrayView<f64, Ix2>;
     fn data_mut(&mut self) -> ArrayViewMut<f64, Ix2>;
     fn n(&self) -> usize { self.data().shape()[0] }
-    fn nparams() -> usize;  // Should be equal to data().shape()[1]
+    fn nparams() -> usize where Self: Sized;  // Should be equal to data().shape()[1]
 
-    fn from_array_unchecked(data: Array<f64, Ix2>) -> Self;
-    fn from_array(data: Array<f64, Ix2>) -> Result<Self, String> {
+    fn from_array_unchecked(data: Array<f64, Ix2>) -> Self where Self: Sized;
+    fn from_array(data: Array<f64, Ix2>) -> Result<Self, String> where Self: Sized {
         if data.shape()[1] != Self::nparams() {
             Err(format!("Data for ActionType should have {} columns but got {}", Self::nparams(), data.shape()[1]))
         } else {
@@ -134,7 +134,7 @@ pub trait MutatesOnAction<A: ActionType>: Clone + Sized {
 }
 
 
-pub trait StrategyType: Clone + Send + Sync {
+pub trait StrategyType: Send + Sync {
     type Act: ActionType;
     // return n x t x nparams array of params representing strategy
     // where m is the number of parameters for each player + time period
@@ -143,17 +143,17 @@ pub trait StrategyType: Clone + Send + Sync {
 
     fn t(&self) -> usize { self.data().shape()[0] }
     fn n(&self) -> usize { self.data().shape()[1] }
-    fn nparams() -> usize { Self::Act::nparams() } // should be equal to data().shape()[2]
+    fn nparams() -> usize where Self: Sized { Self::Act::nparams() } // should be equal to data().shape()[2]
 
     fn from_array_unchecked(data: Array<f64, Ix3>) -> Self;
-    fn from_array(data: Array<f64, Ix3>) -> Result<Self, String> {
+    fn from_array(data: Array<f64, Ix3>) -> Result<Self, String> where Self:Sized {
         if data.shape()[2] != Self::nparams() {
             Err(format!("Data for StrategyType should have {} columns but got {}", Self::nparams(), data.shape()[2]))
         } else {
             Ok(Self::from_array_unchecked(data))
         }
     }
-    fn from_actions(actions: Vec<Self::Act>) -> Result<Self, String> {
+    fn from_actions(actions: Vec<Self::Act>) -> Result<Self, String> where Self: Sized {
         let data = stack(
             Axis(0),
             &actions.iter().map(
@@ -165,7 +165,7 @@ pub trait StrategyType: Clone + Send + Sync {
         }
         
     }
-    fn random(t: usize, n: usize, mu: f64, sigma: f64) -> Result<Self, String> {
+    fn random(t: usize, n: usize, mu: f64, sigma: f64) -> Result<Self, String> where Self: Sized {
         let dist = match LogNormal::new(mu, sigma) {
             Ok(d) => d,
             Err(e) => return Err(format!("Error when creating LogNormal distribution: {}", e))
@@ -173,7 +173,7 @@ pub trait StrategyType: Clone + Send + Sync {
         Ok(Self::from_array_unchecked(Array::random((t, n, Self::nparams()), dist)))
     }
     
-    fn to_actions(self) -> Vec<Self::Act> {
+    fn to_actions(self) -> Vec<Self::Act> where Self: Sized {
         self.data().outer_iter().map(move |x| {
             Self::Act::from_array(x.to_owned()).unwrap()
         }).collect()

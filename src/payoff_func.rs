@@ -8,7 +8,7 @@ use crate::reward_func::RewardFunc;
 use crate::risk_func::RiskFunc;
 use crate::strategies::{ActionType, MutatesOnAction};
 
-pub trait PayoffFunc: Clone + Send + Sync {
+pub trait PayoffFunc: Send + Sync {
     type Act: ActionType;
     fn n(&self) -> usize;
     fn u_i(&self, i: usize, actions: &Self::Act) -> f64;
@@ -133,7 +133,7 @@ where A: ActionType,
 }
 
 impl<A, T, U, V, W, X, Y> MutatesOnAction<A> for DefaultPayoff<A, T, U, V, W, X, Y>
-where A: ActionType,
+where A: ActionType + Clone,
       T: ProdFunc<A> + MutatesOnAction<A>,
       U: RiskFunc,
       V: CSF,
